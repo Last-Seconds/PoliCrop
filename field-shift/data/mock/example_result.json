@@ -1,0 +1,24 @@
+{
+  "_note": "DEMO contract: the real analysis should output this shape per field. All numbers are placeholders.",
+  "field": { "lat": 46.78, "lon": -117.09, "region": "Palouse (WA/ID)" },
+  "inputs": {
+    "priorities": { "water": 5, "income": 5, "soil": 5, "erosion": 5, "risk": 5 },
+    "drought_mode": false,
+    "excluded_crops": []
+  },
+  "strategies": [
+    {
+      "id": "current",
+      "rotation": ["winter_wheat", "winter_wheat", "spring_barley"],
+      "score": 58.7, "score_low": 50, "score_high": 67, "risk_index": 40.3,
+      "why": "", "evidence": [], "benefits": [], "gaps": [], "risks": []
+    },
+    { "id": "suggestion_1", "rotation": ["winter_wheat", "lentil", "canola"], "score": 63.9 },
+    { "id": "suggestion_2", "rotation": ["winter_wheat", "spring_barley", "lentil"], "score": 63.4 }
+  ],
+  "layers": {
+    "erosion": "grid of 0-1 values per cell and month",
+    "ndvi_timeline": "monthly NDVI per cell",
+    "soil_moisture": "monthly values per cell"
+  }
+}
