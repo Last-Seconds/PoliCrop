@@ -51,7 +51,7 @@ def build_us_providers(content: Content, cache: FileCache) -> Providers:
     crops = CachedProvider(UsCdlProvider(pc, cropscape_cached), cache, "cdl", ["class_counts"])
 
     # Daymet is released once a year: refresh monthly so a new year appears.
-    weather = SnapToDaymetGrid(CachedProvider(DaymetWeather(), cache, "daymet", ["daily"], lambda m, a, r: 30 * DAY))
+    weather = SnapToDaymetGrid(CachedProvider(DaymetWeather(), cache, "daymet_swe", ["daily"], lambda m, a, r: 30 * DAY))
 
     # Soil: the raster read and the (slow) attribute query are cached separately,
     # so a failed attribute query is retried next time instead of being remembered.

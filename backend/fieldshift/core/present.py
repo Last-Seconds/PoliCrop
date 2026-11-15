@@ -187,6 +187,7 @@ def measure_lines(opt: Option, current: Option, fm) -> list[dict]:
             "measure": m, "label": MEASURE_LABELS[m],
             "verdict": None if opt is current else v.value,
             "verdict_word": None if opt is current else ("about the same" if v.value == SAME else v.word),
+            "probably": bool(v and v.probably),
             "symbol": None if opt is current else SYMBOL[v.value],
             "held_by_assumed": bool(v and v.held_by_assumed),
             "assessed": q.assessed,
@@ -553,7 +554,7 @@ def closed_card(opt: Option, current: Option, cautions: list[dict]) -> dict:
         verdicts.append({"measure": m, "label": SHORT_MEASURE[m], "value": v,
                          "symbol": "" if is_cur else SYMBOL[v],
                          "word": "" if is_cur else ("about the same*" if opt.verdicts[m].held_by_assumed
-                                                     else VERDICT_WORDS[v])})
+                                                     else opt.verdicts[m].word)})
     h, hc, n = opt.strategy.harvests, current.strategy.harvests, len(opt.strategy.steps)
     harvest = None if (is_cur or h == hc) else f"{h} harvest{'s' if h != 1 else ''} in {n} years (now {hc})"
     out = {
@@ -562,7 +563,8 @@ def closed_card(opt: Option, current: Option, cautions: list[dict]) -> dict:
         "chips": [{"name": SHORT_NAMES.get(c.name, c.name), "role": c.role} for c in opt.crops],
         "verdicts": verdicts,
         "caution": cautions[0]["short"] if cautions else None,
-        "more_cautions": max(0, len(cautions) - 1),
+        "serious": [c["short"] for c in cautions if c.get("serious")],
+        "more_cautions": max(0, len(cautions) - max(1, len([c for c in cautions if c.get("serious")]))),
         "harvest": harvest,
     }
     # Long plans: the band, then the harvest line, give way (both stay in the details).
@@ -578,8 +580,9 @@ SHORT_MEASURE = {"water": "Water", "soil": "Soil", "nitrogen": "Nitrogen", "vari
 
 def closed_words(cl: dict) -> int:
     """Words on a closed card as the page shows it, including its fixed labels."""
+    shown_cautions = cl.get("serious") or ([cl["caution"]] if cl["caution"] else [])
     return word_count(cl["title"], cl["band"], [x["name"] for x in cl["chips"]], [v["label"] for v in cl["verdicts"]],
-                      [v["word"] for v in cl["verdicts"]], cl["caution"],
+                      [v["word"] for v in cl["verdicts"]], shown_cautions,
                       f"{cl['more_cautions']} more cautions" if cl["more_cautions"] else "", cl["harvest"],
                       "Why and details")
 
@@ -654,7 +657,7 @@ def card(opt: Option, res: PlanResult, content: Content) -> dict:
                                 "text": " ".join(f"{r.label}: {r.reason}" for r in failed)
                                         + " The crop map may be wrong; check the crop history.",
                                 "basis": "sourced", "source": None})
-    cautions = sorted(cautions, key=lambda c: c["priority"])
+    cautions = sorted(cautions, key=lambda c: (not c.get("serious"), c["priority"]))
     return {
         "closed": closed_card(opt, current, cautions),
         "first": first_layer(opt, res, cautions),
@@ -691,16 +694,32 @@ def headline(res: PlanResult, content: Content, rotation_text: str) -> list[str]
     top = MEASURE_LABELS[o["top_priority"]].lower()
     if o["no_options"]:
         return ["No option passed the rules with the crops grown near this field and your settings."]
-    good = o["at_least_as_good"][0] if o["at_least_as_good"] else None
+    shown_ids = {x.strategy.id for x in res.shown}
+    good = next((g for g in o["at_least_as_good"] if g in shown_ids), None)  # name only options on screen
     if not o["holds_up"]:
         best = next((x for x in res.shown if x.verdicts[o["top_priority"]].value == BETTER), None)
         if best:
             if good == best.strategy.id:
-                return [f"{best.strategy.label} is better than now on {top}, your top priority, and no worse on anything."]
-            return [f"{best.strategy.label} is better than now on {top}, your top priority, but gives something up."]
+                return [f"{best.strategy.label} is better than now on {top}, your top priority, and no worse on "
+                        f"anything{_serious_clause(best)}."]
+            return [f"{best.strategy.label} is better than now on {top}, your top priority, but gives something up"
+                    f"{_serious_clause(best)}."]
     if good:
-        return [f"Your rotation holds up on {top}; {_label_of(res, good)} is at least as good on all four measures."]
+        g = next(x for x in res.shown + res.more if x.strategy.id == good)
+        return [f"Your rotation holds up on {top}; {g.strategy.label} is at least as good on all four measures"
+                f"{_serious_clause(g)}."]
     return [f"Your rotation holds up on {top}; the options trade one thing for another."]
+
+
+def _serious_clause(o: Option) -> str:
+    """Addendum 2, A1: an option with a serious caution is never praised without naming it."""
+    ws = [w for w in o.warnings if w.serious]
+    if not ws:
+        return ""
+    tag = {"W6": "winter-kill risk", "W5": "chickpea heat risk"}.get(ws[0].code)
+    if ws[0].code == "W10":
+        tag = f"{ws[0].short.replace(' may be too dry here', '').lower()} may be too dry"
+    return f", but note {tag or ws[0].short.lower()}"
 
 
 def _label_of(res: PlanResult, oid: str) -> str:

@@ -367,7 +367,7 @@
     $("#tab-about").setAttribute("aria-selected", String(about));
     $("#page-field").hidden = about;
     $("#view-about").hidden = !about;
-    if (about) renderAbout();
+    if (about) { renderAbout(); renderEnso($("#about-enso")); }
     else setTimeout(() => { if (map) map.invalidateSize(); }, 50);
     window.scrollTo(0, 0);
   }
@@ -520,6 +520,7 @@
     state.inputs = rec.inputs || {};
     renderSaveControl();
     renderFieldLine(null);
+    setupFieldMap();
     $("#headline").textContent = "";
     $("#compare").replaceChildren();
     $("#cards").replaceChildren(el("div", { class: "loading" }, "Reading your field: crop history, weather and soil. The first time can take a minute or two."));
@@ -538,7 +539,7 @@
   function modelInputs() {
     const rec = currentRec() || {};
     return { ...state.inputs, corrections: state.corrections, kept: rec.kept || [], records: rec.records || [],
-      answers: rec.answers || {}, fit: !!rec.fit };
+      answers: rec.answers || {}, fit: !!rec.fit, example_records: !!rec.example_records };
   }
   const inputsParam = () => encodeURIComponent(JSON.stringify(modelInputs()));
 
@@ -567,6 +568,7 @@
       if (fid !== state.fieldId) return;
       state.strategies = s;
       renderStrategies(s);
+      loadSeason();
       if (state.history && sectionOpen("history")) renderHistory(state.history);
     } catch (err) {
       showError(cards, "Options could not be worked out.", err);
@@ -618,11 +620,14 @@
       const isCur = c.kind === "existing";
       const name = isCur ? "Now" : c.closed.title;
       const crops = c.closed.chips.map((x) => x.name).join(" → ");
-      const said = isCur ? "the rotation every option is compared with" :
-        c.closed.verdicts.map((v) => `${v.label} ${v.word}`).join(", ");
+      const said = (isCur ? "the rotation every option is compared with" :
+        c.closed.verdicts.map((v) => `${v.label} ${v.word}`).join(", ")) +
+        (c.cautions.some((x) => x.serious) ? `; caution: ${c.cautions.filter((x) => x.serious).map((x) => x.short).join("; ")}` : "");
       return el("button", { class: `cmp-row ${isCur ? "cur" : ""}`, type: "button", "aria-label": `${name}: ${crops}; ${said}. Open its card.`,
         onclick: () => openCard(c.id) },
-        el("span", { class: "cmp-title" }, el("strong", {}, name), c.kept ? " ★" : "", " ", el("span", { class: "cmp-crops" }, crops)),
+        el("span", { class: "cmp-title" }, el("strong", {}, name), c.kept ? " ★" : "",
+          c.cautions.some((x) => x.serious) ? el("span", { class: "cmp-warn", title: c.cautions.filter((x) => x.serious).map((x) => x.short).join("; ") }, " ⚠") : null,
+          " ", el("span", { class: "cmp-crops" }, crops)),
         ...c.closed.verdicts.map((v) => el("span", { class: `cmp-v ${isCur ? "n" : vcls(v.value)}`, "aria-hidden": "true" },
           isCur ? "–" : `${v.symbol} ${v.word.replace(/^about the same/, "same")}`)));
     }));
@@ -641,10 +646,12 @@
 
   function card(c, s, shown) {
     const cl = c.closed, isCur = c.kind === "existing";
-    // One caution on the card, preferring one not already shown on an earlier card; the rest behind a count.
-    const first = c.cautions.find((x) => !shown.has(x.key)) || c.cautions[0];
+    // Serious cautions are always shown (addendum 2, A1). Otherwise one caution, preferring one not already
+    // shown on an earlier card; the rest behind a count.
+    const serious = c.cautions.filter((x) => x.serious);
+    const first = serious.length ? null : (c.cautions.find((x) => !shown.has(x.key)) || c.cautions[0]);
     if (first) shown.add(first.key);
-    const rest = c.cautions.filter((x) => x !== first);
+    const rest = c.cautions.filter((x) => x !== first && !x.serious);
     const restList = el("ul", { class: "cautions rest", hidden: true }, rest.map((x) => el("li", {}, x.short)));
     const restBtn = rest.length ? el("button", { class: "linklike", type: "button", "aria-expanded": "false", onclick: (e) => {
       restList.hidden = !restList.hidden; e.currentTarget.setAttribute("aria-expanded", String(!restList.hidden));
@@ -666,7 +673,9 @@
       isCur ? el("p", { class: "cur-note" }, "Every option is compared with this.") :
         el("ul", { class: "vlines" }, cl.verdicts.map((v) => el("li", {}, el("span", { class: "vl" }, v.label),
           el("span", { class: `verdict ${vcls(v.value)}` }, `${v.symbol} ${v.word}`)))),
-      first ? el("div", { class: "caution-line" }, el("span", { class: "caution" }, first.short), restBtn ? " " : null, restBtn, restList) : null,
+      serious.length ? el("ul", { class: "cautions serious" }, serious.map((x) => el("li", { class: "caution serious" }, x.short))) : null,
+      (first || restBtn) ? el("div", { class: "caution-line" }, first ? el("span", { class: "caution" }, first.short) : null,
+        restBtn ? " " : null, restBtn, restList) : null,
       cl.harvest ? el("p", { class: "harvest" }, cl.harvest) : null,
       toggle, det);
   }
@@ -1066,6 +1075,299 @@
     const pop = $("#popover");
     if (!pop.hidden && !pop.contains(e.target) && !e.target.closest(".yr")) pop.hidden = true;
   });
+
+  // ---------- the farmer's records, fitting (brief 3, parts B and C) -------------------------------
+  const UNITS = [["bu", "bushels"], ["lb", "pounds"], ["cwt", "hundredweight"], ["ton", "tons"]];
+
+  function recordsGroup() {
+    const rec = currentRec();
+    const s = state.strategies;
+    const box = el("div", { class: "records" });
+    const msg = el("div", { "aria-live": "polite" });
+    const draw = () => {
+      const r = currentRec();
+      const sec = state.strategies && state.strategies.records;
+      const years = (state.history ? state.history.years : []).filter((y) => y.crop_id && state.config.offered_crops.includes(y.crop_id)
+        && !["fallow", "cover_crop"].includes((state.config.crops.find((c) => c.id === y.crop_id) || {}).role)).slice(-12).reverse();
+      const have = Object.fromEntries((r.records || []).map((x) => [`${x.year}:${x.crop}`, x]));
+      const rows = years.map((y) => {
+        const k = have[`${y.year}:${y.crop_id}`];
+        const crop = state.config.crops.find((c) => c.id === y.crop_id);
+        const unitDefault = crop && crop.yield_unit ? ({ bu: "bu", tons: "ton" }[crop.yield_unit.name] || "lb") : "lb";
+        return el("tr", { "data-year": y.year, "data-crop": y.crop_id },
+          el("td", {}, y.year), el("td", {}, crop ? crop.name : y.crop_id),
+          el("td", {}, el("input", { type: "number", min: 0, step: "any", inputmode: "decimal", "aria-label": `Harvest ${y.year}`,
+            value: k && k.entered ? k.entered.value : (k ? k.yield_lb_ac : ""), "data-k": "value" })),
+          el("td", {}, el("select", { "aria-label": `Unit ${y.year}`, "data-k": "unit" }, UNITS.map(([u, w]) =>
+            el("option", { value: u, selected: (k && k.entered ? k.entered.unit : (k ? "lb" : unitDefault)) === u || null }, w)))),
+          el("td", {}, el("select", { "aria-label": `Per acre or total ${y.year}`, "data-k": "basis" },
+            el("option", { value: "per_acre" }, "per acre"),
+            el("option", { value: "total", selected: k && k.entered && k.entered.basis === "total" || null }, "total from the field"))));
+      });
+      const table = el("div", { class: "table-wrap" }, el("table", { class: "data-table left rec-table" },
+        el("thead", {}, el("tr", {}, ["Year", "Crop", "Harvest", "Unit", ""].map((h) => el("th", {}, h)))), el("tbody", {}, rows)));
+      const acres = el("input", { type: "number", min: 0, step: "any", value: (r.harvest_acres || (r.acres || "")), "aria-label": "Acres harvested" });
+      box.replaceChildren(
+        el("p", {}, "Fill in the years you know; leave the rest empty. Or download the blank sheet, fill it in and load it."),
+        table,
+        el("label", { class: "row" }, "Acres harvested, for totals: ", acres),
+        el("div", { class: "row" },
+          el("button", { class: "btn primary", type: "button", onclick: () => useTyped(table, acres, msg) }, "Use these figures"),
+          el("a", { class: "btn", href: `/api/field/${state.fieldId}/records_template.xlsx?corrections=${encodeURIComponent(JSON.stringify(state.corrections))}` }, "Download a blank sheet"),
+          el("label", { class: "btn file-btn" }, "Load a sheet (.xlsx or .csv)",
+            el("input", { type: "file", accept: ".xlsx,.csv", class: "visually-hidden", onchange: (e) => { uploadSheet(e.target.files[0], msg); e.target.value = ""; } }))),
+        el("p", { class: "small muted" }, "A file you load is read on our server for its values only, then discarded. Your records are kept in this browser, with the field."),
+        msg,
+        el("div", { class: "row" },
+          el("button", { class: "btn", type: "button", onclick: async () => {
+            const ex = await api(`/api/field/${state.fieldId}/example_records?corrections=${encodeURIComponent(JSON.stringify(state.corrections))}`);
+            updateRec({ records: ex.records.map((x) => ({ ...x, entered: null })), example_records: true, answers: {} });
+            msg.replaceChildren(el("p", { class: "notice" }, "Example records loaded: example data, not a real farm."));
+            loadStrategies(); draw();
+          } }, "Try with example records"),
+          (r.records || []).length ? el("button", { class: "btn", type: "button", onclick: () => {
+            updateRec({ records: [], answers: {}, example_records: false, fit: false }); loadStrategies(); draw();
+          } }, "Clear records") : null,
+          (r.records || []).length ? el("button", { class: "btn", type: "button", onclick: downloadRecords }, "Download my records") : null),
+        sec && sec.count ? recordsResult(sec, draw) : null);
+    };
+    draw();
+    return { node: item(el("span", {}, "Your harvest records"), box,
+      "Your own yields, by year. They are compared with what that year's weather would have led us to expect, and blended with regional figures: a few records nudge the result, many lead it."), collect: null };
+  }
+
+  function downloadRecords() {
+    const r = currentRec();
+    const blob = new Blob([JSON.stringify({ format: "fieldshift-records", version: 1, field: r.name || null, records: r.records, answers: r.answers }, null, 1)], { type: "application/json" });
+    const a = el("a", { href: URL.createObjectURL(blob), download: "my-harvest-records.json" });
+    document.body.append(a); a.click(); a.remove();
+  }
+
+  async function useTyped(table, acres, msg) {
+    const rows = [...table.querySelectorAll("tbody tr")].map((tr) => ({
+      year: +tr.dataset.year, crop: tr.dataset.crop, value: tr.querySelector("[data-k=value]").value,
+      unit: tr.querySelector("[data-k=unit]").value, basis: tr.querySelector("[data-k=basis]").value, acres: acres.value || null,
+    })).filter((x) => x.value !== "");
+    const res = await api(`/api/field/${state.fieldId}/records/check`, { method: "POST", body: JSON.stringify({ rows }) });
+    showPreview(res.rows, msg, acres.value);
+  }
+
+  async function uploadSheet(file, msg) {
+    if (!file) return;
+    msg.replaceChildren(el("div", { class: "loading" }, "Reading the file…"));
+    try {
+      const res = await fetch(`/api/field/${state.fieldId}/records/read?name=${encodeURIComponent(file.name)}`, { method: "POST", body: await file.arrayBuffer() });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.detail || res.statusText);
+      showPreview(body.rows, msg, null, body);
+    } catch (err) {
+      msg.replaceChildren(el("p", { class: "error", role: "alert" }, err.message));
+    }
+  }
+
+  function showPreview(rows, msg, acres, info) {
+    const names = Object.fromEntries(state.config.crops.map((c) => [c.id, c.name]));
+    const ok = rows.filter((r) => r.status === "ok" || r.status === "confirm");
+    const confirms = {};
+    const table = el("div", { class: "table-wrap" }, el("table", { class: "data-table left" },
+      el("thead", {}, el("tr", {}, ["Line", "Year", "Crop", "Read as", ""].map((h) => el("th", {}, h)))),
+      el("tbody", {}, rows.filter((r) => r.status !== "empty").map((r) => el("tr", {},
+        el("td", {}, r.line), el("td", {}, r.year ?? "–"), el("td", {}, r.crop ? names[r.crop] : "–"),
+        el("td", {}, r.yield_lb_ac ? `${Math.round(r.yield_lb_ac).toLocaleString()} lb/acre (${r.value} ${r.unit}${r.basis === "total" ? " total" : " per acre"})` : "–"),
+        el("td", {}, r.status === "ok" ? "✓" : r.status === "confirm" ?
+          el("label", {}, el("input", { type: "checkbox", onchange: (e) => { confirms[r.line] = e.target.checked; } }), ` keep? ${r.reason}`) :
+          el("span", { class: "error-text" }, `not used: ${r.reason}`)))))));
+    msg.replaceChildren(
+      el("h4", {}, "Check how each row was read"),
+      info && info.unsure && info.unsure.length ? el("p", { class: "notice" }, `Some columns could be read more than one way (${info.unsure.join(", ")}): check the years, crops and figures below.`) : null,
+      table,
+      el("div", { class: "row" },
+        el("button", { class: "btn primary", type: "button", onclick: () => {
+          const use = ok.filter((r) => r.status === "ok" || confirms[r.line]);
+          const prev = Object.fromEntries((currentRec().records || []).map((x) => [`${x.year}:${x.crop}`, x]));
+          for (const r of use) prev[`${r.year}:${r.crop}`] = { year: r.year, crop: r.crop, yield_lb_ac: r.yield_lb_ac,
+            entered: { value: r.value, unit: r.unit, basis: r.basis, acres: acres ? +acres : null }, confirmed: r.status === "confirm" };
+          updateRec({ records: Object.values(prev), example_records: false });
+          msg.replaceChildren(el("p", { class: "notice" }, `${use.length} record${use.length === 1 ? "" : "s"} added. Close Adjust and press Show results to see them used.`));
+          loadStrategies();
+        } }, `Use ${ok.length} row${ok.length === 1 ? "" : "s"}`)));
+  }
+
+  function recordsResult(sec, redraw) {
+    const rec = currentRec();
+    const names = Object.fromEntries(state.config.crops.map((c) => [c.id, c.name]));
+    const rows = sec.comparison.rows;
+    const chartBox = el("div", {});
+    setTimeout(() => {
+      if (!chartBox.isConnected) return;
+      makeChart("records", chartBox, {
+        _label: "Your yield beside our estimate for each year",
+        type: "bar",
+        data: { labels: rows.map((r) => `${r.year} ${names[r.crop].toLowerCase()}`), datasets: [
+          { label: "Your yield", data: rows.map((r) => r.actual_lb_ac), backgroundColor: css("--series-ndvi") },
+          { label: "Our estimate for that year's weather", data: rows.map((r) => r.expected_lb_ac), backgroundColor: css("--series-rain") }] },
+        options: { plugins: { legend: { display: true }, tooltip: { callbacks: { afterBody: (it) => {
+          const r = rows[it[0].dataIndex]; return [r.reason_words ? `Your answer: ${r.reason_words}${r.excluded ? " (left out of fitting)" : ""}` : "", sec.example ? "Example data, not a real farm" : ""].filter(Boolean);
+        } } } }, scales: { y: { title: { display: true, text: "lb per acre" }, beginAtZero: true } } },
+      }, "short");
+    }, 50);
+    const q = sec.questions.map((x) => el("div", { class: "question" },
+      el("p", {}, el("strong", {}, `${x.year}, ${x.crop_name.toLowerCase()}: `), "Our estimate missed this year. Do you know why?"),
+      el("select", { "aria-label": `Why ${x.year} was different`, onchange: (e) => {
+        const answers = { ...(currentRec().answers || {}) };
+        if (e.target.value) answers[x.key] = e.target.value; else delete answers[x.key];
+        updateRec({ answers }); loadStrategies();
+      } }, el("option", { value: "" }, "Choose…"), Object.entries(sec.reasons).map(([k, w]) => el("option", { value: k, selected: x.answer === k || null }, w)))));
+    const fitOn = !!rec.fit;
+    const fit = sec.fit;
+    const fitBox = el("div", { class: "fit" },
+      el("label", { class: "switch" }, el("input", { type: "checkbox", checked: fitOn || null, onchange: (e) => { updateRec({ fit: e.target.checked }); loadStrategies().then(redraw); } }), " Fit to my field"),
+      fitOn && fit ? el("p", {}, fit.applied ? fit.message : fit.message, sec.example ? " (example data, not a real farm)" : "") : null,
+      fitOn ? el("button", { class: "btn", type: "button", onclick: () => { updateRec({ fit: false }); loadStrategies().then(redraw); } }, "Undo: back to the regional values") : null,
+      fit && fit.coverage ? el("p", { class: "notice" }, fit.coverage) : null);
+    return el("div", { class: "rec-result" },
+      el("h4", {}, "Your yields against our estimate"), sec.example ? el("p", { class: "notice" }, "Example data, not a real farm.") : null,
+      chartBox, el("p", {}, sec.comparison.sentence + " Each estimate uses that year's own weather, month by month: in past years like this, not a forecast."),
+      q.length ? el("div", {}, ...q) : null,
+      sec.levels.length ? el("details", {}, el("summary", {}, "What your records changed"), el("ul", {}, sec.levels.map((l) => el("li", {},
+        `${l.crop}: ${l.level_lb_ac.toLocaleString()} lb/acre against the regional ${l.regional_lb_ac.toLocaleString()} (weight ${Math.round(l.w * 100)}%)`
+        + (l.borrowed_from.length ? `, estimated from your ${l.borrowed_from.map((x) => x.toLowerCase()).join(" and ")} records` : "")
+        + (sec.example ? " — example data, not a real farm" : ""))))) : null,
+      fitBox);
+  }
+  ADJUST_EXTRAS.push(() => (state.fieldId ? recordsGroup() : null));
+
+  // ---------- this year so far (brief 3, part D) ---------------------------------------------
+  async function loadSeason() {
+    const line = $("#season-line");
+    line.hidden = true;
+    const fid = state.fieldId;
+    const asof = (/asof=(\d{4}-\d{2}-\d{2})/.exec(location.hash) || [])[1];
+    let s;
+    try {
+      s = await api(`/api/field/${fid}/season?inputs=${inputsParam()}${asof ? `&date=${asof}` : ""}`);
+    } catch { return; }
+    if (fid !== state.fieldId || !s.show || ["hidden"].includes(s.status)) return;
+    const date = fmtDate(s.date);
+    let head;
+    if (s.status === "unavailable") head = `This year so far (${date}): the check is unavailable — ${s.reason || "no station data"}.`;
+    else if (s.status === "refills") head = `This year so far (${date}): ${s.message}`;
+    else head = `This year so far (${date}): stored water is wetter than ${s.rank.wetter_than} of the last ${s.rank.of} winters at this date.`;
+    const body = [];
+    if (s.stored_in != null) body.push(`Stored water so far for ${s.next_crop.toLowerCase()} (${s.kind === "fallow" ? "after fallow" : "after a harvested crop"}): about ${s.stored_in} in of a possible ${s.capacity_in} in.`);
+    if (s.status === "ok") body.push(`In ${s.lookalike_years.length} past years that started like this one, ${s.next_role === "fallow" ? "a spring crop" : s.next_crop.toLowerCase()} ran short in ${s.lookalike_short}.` + (s.lookalike_note ? ` ${s.lookalike_note}` : ""));
+    if (s.guideline && s.guideline.band) body.push(`Guideline only [S27]: for ${s.guideline.band} of yearly rain and snow, about ${s.guideline.spring_in} in of stored water before spring planting and ${s.guideline.autumn_in} in before autumn planting.`);
+    for (const a of s.alternatives || []) body.push(`${a.crop}: short in ${a.short} of ${a.of} of those years.`);
+    if (s.records && s.records.length) body.push(`You recorded ${s.records.map((r) => `${Math.round(r.yield_lb_ac)} lb/acre in ${r.year}`).join(" and ")} in years like this.`);
+    if (s.source && s.source.text) body.push(s.source.text);
+    body.push("In past years like this; not a forecast. It does not tell you what to plant.");
+    line.replaceChildren(el("details", {}, el("summary", {}, head), el("ul", {}, body.map((t) => el("li", {}, t)))));
+    line.hidden = false;
+  }
+
+  // ---------- validation and El Niño (brief 3, parts A and D) --------------------------------------
+  async function renderValidation(box) {
+    let v;
+    try { v = await api("/api/validation"); } catch (err) { box.replaceChildren(el("p", { class: "muted" }, err.message)); return; }
+    const names = Object.fromEntries(state.config.crops.map((c) => [c.id, c.name]));
+    const r2 = (x) => (x == null ? "–" : x.toFixed(2));
+    const pc = (x) => (x == null ? "–" : `${Math.round(x * 100)}%`);
+    const east = v.areas.find((a) => a.id === "east"), west = v.areas.find((a) => a.id === "west");
+    const words = (r) => (r == null ? "unknown" : r >= 0.7 ? "fairly close" : r >= 0.5 ? "moderate" : "weak");
+    box.replaceChildren(
+      el("p", {}, `How closely the tool's idea of a good or bad year matched what satellites saw (${v.method.years}): the match was ${words(east.all_crops.correlation)} in the east (correlation ${r2(east.all_crops.correlation)}, ${east.all_crops.years} years) and ${words(west.all_crops.correlation)} in the dry west (${r2(west.all_crops.correlation)}, ${west.all_crops.years} years). The quick tests found ${v.quick_tests.east_correlation} and ${v.quick_tests.west_correlation}.`),
+      el("p", {}, `Neighbouring fields differ more in one year (spread ${r2(east.all_crops.spread_between_neighbouring_pixels)}) than the whole area differs between years (${r2(east.all_crops.spread_of_area_average_between_years)}), so the tool describes the year, not one field's result.`),
+      el("p", {}, "\"Greenness\" is the highest satellite greenness (MODIS NDVI) in late April to late July, over pixels where one crop covers at least 75%. It is not yield."),
+      table(["Area", "Rain and snow a year", "Crop", "Correlation", "Better than the crop's average (leave one year out)", "Years", "Pixels a year"],
+        v.areas.flatMap((a) => Object.entries(a.crops).filter(([, c]) => c.years >= 6).map(([cid, c]) => [a.name, `${a.mean_crop_year_precip_in} in`, names[cid] || cid,
+          r2(c.correlation), pc(c.loo_reduction), c.years, c.pixels_median]))),
+      el("p", { class: "small" }, "Where it did not match: a negative figure means the index did worse than simply using the crop's own average. Lentils and peas did not fit in the east, as in the quick tests."),
+      el("h4", {}, "How strongly each crop swings with the year (winter wheat = 1)"),
+      table(["Crop", "Sensitivity", "Basis", "Years"], Object.entries(v.sensitivities).map(([cid, s]) => [names[cid] || cid, s.value, s.basis, s.n_years ?? "–"])),
+      el("p", { class: "small muted" }, `County yields: ${v.county_yields.available ? "used" : "not available (data/us/county_yields.csv not supplied), so greenness was used"}. Generated ${v.generated}.`));
+  }
+
+  async function renderEnso(box) {
+    if (!state.fieldId) { box.replaceChildren(el("p", { class: "muted" }, "Open a field to see what El Niño winters have meant there.")); return; }
+    try {
+      const e = await api(`/api/field/${state.fieldId}/enso`);
+      if (e.status !== "ok") throw new Error("unavailable");
+      box.replaceChildren(el("p", {}, `NOAA's index for ${e.season} ${e.year}: ${e.anomaly > 0 ? "+" : ""}${e.anomaly} (${e.state}). On your field, September–March rain and snow averaged ${e.el_nino_sep_mar_in} in in El Niño winters (${e.el_nino_years}) against ${e.other_sep_mar_in} in in the others (${e.other_years}).`),
+        el("p", {}, e.note));
+    } catch { box.replaceChildren(el("p", { class: "muted" }, "The El Niño index could not be read.")); }
+  }
+
+  // ---------- field layers on the map (addendum 2, B) ----------
+  const LAYERS = [
+    { id: "photo", label: "Satellite photo" },
+    { id: "crops", label: "Crop map" },
+    { id: "slope", label: "Slope" },
+  ];
+  const fmap = { map: null, outline: null, overlay: null, fieldId: null, layer: "photo", cache: {} };
+
+  function setupFieldMap() {
+    const box = $("#field-mapbox");
+    if (fmap.fieldId !== state.fieldId && fmap.map) {
+      if (fmap.overlay) { fmap.map.removeLayer(fmap.overlay); fmap.overlay = null; }
+      if (fmap.outline) fmap.map.removeLayer(fmap.outline);
+      fmap.outline = L.geoJSON(state.field.geometry, { style: { color: "#4cf", weight: 3, fill: false } }).addTo(fmap.map);
+      fmap.map.fitBounds(fmap.outline.getBounds(), { padding: [20, 20] });
+      fmap.fieldId = state.fieldId;
+      showLayer("photo");
+    }
+    box.open = window.matchMedia("(min-width: 1000px)").matches;
+    if (box.open) ensureFieldMap();
+  }
+
+  function ensureFieldMap() {
+    if (!state.field) return;
+    if (!fmap.map) {
+      fmap.map = L.map("field-map-main", { zoomControl: true, scrollWheelZoom: false, dragging: !L.Browser.mobile, tap: false });
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Esri World Imagery" }).addTo(fmap.map);
+      $("#layer-control").replaceChildren(...LAYERS.map((l) => el("label", { class: "radio" },
+        el("input", { type: "radio", name: "maplayer", value: l.id, checked: l.id === "photo" || null, onchange: () => showLayer(l.id) }), " ", l.label)));
+    }
+    setTimeout(() => {
+      fmap.map.invalidateSize();
+      if (fmap.fieldId !== state.fieldId) {
+        if (fmap.outline) fmap.map.removeLayer(fmap.outline);
+        fmap.outline = L.geoJSON(state.field.geometry, { style: { color: "#4cf", weight: 3, fill: false } }).addTo(fmap.map);
+        fmap.fieldId = state.fieldId;
+        showLayer(fmap.layer);
+      }
+      fmap.map.fitBounds(fmap.outline.getBounds(), { padding: [20, 20] });
+    }, 30);
+  }
+
+  async function showLayer(id) {
+    fmap.layer = id;
+    document.querySelectorAll("#layer-control input").forEach((i) => { i.checked = i.value === id; });
+    if (fmap.overlay) { fmap.map.removeLayer(fmap.overlay); fmap.overlay = null; }
+    const legend = $("#layer-legend");
+    const fid = state.fieldId;
+    if (id === "photo") { legend.textContent = "Satellite photo; your field is outlined in blue."; return; }
+    legend.textContent = "Loading…";
+    try {
+      if (id === "crops") {
+        const { years } = await api("/api/overlay/years");
+        const year = years[years.length - 1];
+        const meta = fmap.cache[`crops${year}`] || (fmap.cache[`crops${year}`] = await api(`/api/overlay/${year}.json`));
+        if (fid !== state.fieldId || fmap.layer !== id) return;
+        fmap.overlay = L.imageOverlay(`/api/overlay/${year}.png`, meta.bounds, { opacity: 0.7, interactive: false }).addTo(fmap.map);
+        legend.replaceChildren(`USDA crop map ${year} (it has errors): `, ...meta.legend.slice(0, 5).flatMap((l, i) => [i ? ", " : "",
+          el("span", { class: "sw", style: `background:${l.color}` }), ` ${l.name.toLowerCase()}`]), ".");
+      } else if (id === "slope") {
+        const meta = fmap.cache[`slope${fid}`] || (fmap.cache[`slope${fid}`] = await api(`/api/field/${fid}/slope_map.json`));
+        if (fid !== state.fieldId || fmap.layer !== id) return;
+        fmap.overlay = L.imageOverlay(`/api/field/${fid}/slope.png`, meta.bounds, { opacity: 0.85, interactive: false }).addTo(fmap.map);
+        const steep = meta.legend.find((g) => g.class === "high");
+        legend.replaceChildren(el("span", { class: "sw", style: `background:${steep ? steep.color : "#B2182B"}` }),
+          ` red stripes: steeper than 15% (${steep ? Math.round(steep.share * 100) : 0}% of the field), where winter cover matters most; orange 5–15%; pale under 5%.`);
+      }
+    } catch (err) {
+      legend.textContent = `This layer could not be shown (${err.message}).`;
+    }
+  }
 
   // ---------- evidence: rain and heat ----------------------------------------------------------------
   async function loadClimate() {
@@ -1511,6 +1813,7 @@
           el("td", {}, p.key), el("td", {}, `${fmtVal(p.value)}${p.unit ? " " + p.unit : ""}`),
           el("td", {}, basisTag(p.basis), p.source ? ` ${p.source}` : "", p.basis === "assumed" ? el("div", {}, el("span", { class: "tag-prov" }, "provisional")) : null),
           el("td", {}, p.description || "")))))),
+      el("h3", {}, "Checked against what happened"), (() => { const b = el("div", {}, el("div", { class: "loading" }, "Loading…")); renderValidation(b); return b; })(),
       el("h3", {}, "What the model does not know"),
       el("ul", {}, (cfg.model_gaps || []).map((t) => el("li", {}, t))));
   }
@@ -1564,6 +1867,7 @@
     $("#tab-field").addEventListener("click", () => setTab("field"));
     $("#tab-about").addEventListener("click", () => setTab("about"));
     document.addEventListener("toggle", onSectionToggle, true);
+    $("#field-mapbox").addEventListener("toggle", (e) => { if (e.target.open) ensureFieldMap(); });
     window.addEventListener("hashchange", route);
     window.addEventListener("resize", () => { for (const ch of Object.values(state.charts)) ch.resize(); });
     route();

@@ -95,3 +95,28 @@ def test_kept_options_are_scored_and_marked(service, field, content):
     k = s["kept"][0]
     assert k["kept"] and k["closed"]["verdicts"][0]["word"]
     assert "kept" in s["inputs"]["ignored"]
+
+
+# ---- addendum 2, section A ----------------------------------------------------------------------
+
+def _new(c, cur):
+    return {x for x in c["crop_ids"] if x not in cur["crop_ids"] and x != "fallow"}
+
+
+@pytest.mark.parametrize("inputs", [{}, {"plan_length": 4}, {"priorities": ["variety"]}, {"rain_pct": -30}])
+def test_serious_caution_never_first_and_options_differ(service, field, inputs):
+    s = service.strategies(field, inputs)
+    flags = [any(c.get("serious") for c in o["cautions"]) for o in s["options"]]
+    assert flags == sorted(flags)  # no serious option ahead of one without
+    if len(s["options"]) == 3:
+        assert not set.intersection(*(_new(o, s["current"]) for o in s["options"]))
+    for o in s["options"]:  # a serious caution is never hidden behind "more"
+        serious = [c["short"] for c in o["cautions"] if c.get("serious")]
+        assert o["closed"]["serious"] == serious
+
+
+def test_headline_names_a_serious_caution(service, field):
+    s = service.strategies(field, {})
+    for o in s["options"]:
+        if o["id"] in s["headline"][0] and any(c.get("serious") for c in o["cautions"]):
+            assert "but note" in s["headline"][0]

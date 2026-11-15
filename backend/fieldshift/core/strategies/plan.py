@@ -64,8 +64,12 @@ def _extremes(series: DailySeries, years: list[int], configs) -> dict[str, dict]
             out["W5"] = years_with_extreme(series, years, cfg.params.get("months", [6, 7]),
                                            units.f_to_c(float(cfg.params.get("limit_f", 98))), hot=True)
         elif cfg.id == "winter_pea_cold":
-            out["W6"] = years_with_extreme(series, years, cfg.params.get("months", [11, 12, 1, 2, 3]),
-                                           units.f_to_c(float(cfg.params.get("limit_f", -6))), hot=False)
+            months, lim = cfg.params.get("months", [11, 12, 1, 2, 3]), units.f_to_c(float(cfg.params.get("limit_f", -6)))
+            snow = cfg.params.get("snow_below_kg_m2")
+            out["W6"] = years_with_extreme(series, years, months, lim, hot=False,
+                                           swe_below=None if snow is None else float(snow))
+            out["W6_any"] = years_with_extreme(series, years, months, lim, hot=False)
+            out["W6_snow_known"] = {y: series.swe is not None for y in years}
     return out
 
 
@@ -147,9 +151,18 @@ def run_plan(content: Content, existing_crops: list[Crop], reference: list[Crop]
     def seen(o: Option) -> bool:
         return o.nearby is None or seen_min is None or o.nearby >= seen_min
 
+    # Addendum 2, A1: options with a serious caution go after every option without one.
+    serious_cache: dict = {}
+
+    def serious(o: Option) -> bool:
+        key = tuple(c.id for c in o.crops)
+        if key not in serious_cache:
+            serious_cache[key] = any(w.serious for w in warnings_mod.evaluate(o.crops, fm, content.warnings))
+        return serious_cache[key]
+
     order = sorted(range(len(options)), key=lambda i: order_key(
         options[i].verdicts, options[i].scores, priorities, options[i].strategy.harvests, tie(options[i]),
-        inputs.dry_mode, seen(options[i])))
+        inputs.dry_mode, seen(options[i]), serious(options[i])))
     table = Table.build([o.scores for o in options] + [current.scores],
                         [o.strategy.harvests for o in options] + [current.strategy.harvests], mg)
     k = int(s["comparison.alternatives_shown"])
@@ -157,6 +170,10 @@ def run_plan(content: Content, existing_crops: list[Crop], reference: list[Crop]
     sel = select(order, [o.band for o in options], table, len(options), k, k_more)
     t3 = time.time()
 
+    sel.shown, sel.more = vary_new_crops(sel.shown, sel.more, order, options, existing_crops, table)
+    # Addendum 2, A1: an option with a serious caution is never put before one without (stable otherwise).
+    sel.shown = sorted(sel.shown, key=lambda i: serious(options[i]))
+    sel.more = sorted(sel.more, key=lambda i: serious(options[i]))
     shown = [options[i] for i in sel.shown]
     more = [options[i] for i in sel.more]
     letters = "ABCDEFGHIJKLMNOP"
@@ -207,6 +224,37 @@ def run_plan(content: Content, existing_crops: list[Crop], reference: list[Crop]
         "scenario": {"rain_pct": inputs.rain_pct, "temp_f": inputs.temp_f},
     }
     return PlanResult(current, shown, more, kept, fm, inputs, priorities, stats, outcomes, replay_info)
+
+
+def new_crops(o: Option, existing: list[Crop]) -> set[str]:
+    have = {c.id for c in existing}
+    return {c.id for c in o.crops if c.id not in have and c.role not in ("fallow",)}
+
+
+def vary_new_crops(shown: list[int], more: list[int], order: list[int], options: list[Option],
+                   existing: list[Crop], table) -> tuple[list[int], list[int]]:
+    """Addendum 2, A4: among the three options shown, at most two introduce the same new crop. The third place
+    goes to the best-ordered option (not beaten by another) that does not."""
+    if len(shown) < 3:
+        return shown, more
+    common = set.intersection(*(new_crops(options[i], existing) for i in shown))
+    if not common:
+        return shown, more
+    import numpy as np
+    elite: list[int] = []
+    first_two = new_crops(options[shown[0]], existing) & new_crops(options[shown[1]], existing)
+    pool = [i for i in list(more) + [j for j in order if j not in more]
+            if i not in shown and not (new_crops(options[i], existing) & first_two)]  # else all three share a crop
+    current_row = np.array([len(options)])
+    # First choice: not beaten by any option. Failing that: not beaten by the current rotation.
+    for strict in (True, False):
+        for i in pool:
+            if i not in more and (table.dominated(i, elite) if strict else table.dominators(i, current_row).size):
+                continue
+            out = shown[:2] + [i]
+            rest = [shown[2]] + [m for m in more if m != i]
+            return out, rest[:len(more)]
+    return shown, more
 
 
 def kept_options(content: Content, inputs: FarmerInputs, existing: list[Crop], listed: list[Option], rules,

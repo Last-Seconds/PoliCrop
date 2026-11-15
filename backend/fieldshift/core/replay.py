@@ -136,7 +136,7 @@ def build_replay(series: DailySeries, capacity_mm: dict[str, float], settings: S
 
 
 def years_with_extreme(series: DailySeries, years: list[int], months: list[int], limit_c: float,
-                       hot: bool) -> dict[int, bool | None]:
+                       hot: bool, swe_below: float | None = None) -> dict[int, bool | None]:
     """Per crop year: did any day in `months` reach the limit (tmax >= limit if hot, tmin <= limit if not)?
 
     Months from September onward belong to the calendar year before the crop year
@@ -153,9 +153,14 @@ def years_with_extreme(series: DailySeries, years: list[int], months: list[int],
             if not series.covers(a, b):
                 continue
             w = series.window(arr, a, b)
-            w = w[~np.isnan(w)]
-            seen += w.size
-            if w.size and ((w >= limit_c).any() if hot else (w <= limit_c).any()):
+            ok = ~np.isnan(w)
+            seen += int(ok.sum())
+            cond = (w >= limit_c) if hot else (w <= limit_c)
+            if swe_below is not None and series.swe is not None:
+                # addendum 2, A3: a cold night counts only with little snow (modelled snow water equivalent)
+                sw = series.window(series.swe, a, b)
+                cond = cond & ~np.isnan(sw) & (sw < swe_below)
+            if (cond & ok).any():
                 hit = True
         out[y] = hit if seen else None
     return out

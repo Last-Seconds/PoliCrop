@@ -62,6 +62,12 @@
           <p id="field-line" class="field-line"></p>
           <div id="save-box" class="save-box"></div>
         </div>
+        <details id="field-mapbox" class="field-mapbox">
+          <summary>Field map <span class="muted">· satellite, crop map, slope</span></summary>
+          <div id="field-map-main" class="field-map-main" aria-label="Your field on the map"></div>
+          <div id="layer-control" class="layer-control" role="radiogroup" aria-label="Map layer"></div>
+          <p id="layer-legend" class="layer-legend"></p>
+        </details>
         <p id="headline" class="headline" aria-live="polite"></p>
         <div id="season-line" class="season-line" hidden></div>
 
@@ -110,6 +116,7 @@
     <div class="page about">
       <h1>About this area</h1>
       <details class="ev" open><summary>Whitman County and its weather</summary><div id="about-region" class="ev-body"></div></details>
+      <details class="ev" id="about-enso-d"><summary>El Niño</summary><div id="about-enso" class="ev-body"></div></details>
       <details class="ev"><summary>Looking ahead to 2050</summary><div id="about-outlook" class="ev-body"></div></details>
       <details class="ev"><summary>Data sources</summary><div id="about-sources" class="ev-body"></div></details>
       <details class="ev"><summary>How this works</summary><div id="about-how" class="ev-body"></div></details>

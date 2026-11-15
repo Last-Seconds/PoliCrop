@@ -239,9 +239,15 @@ def test_assumed_values_never_decide_alone():
     # Assumed, but the verdict survives the unfavourable ends.
     v2 = verdict(Q(20, 18, 22, assumed=True), Q(5, 3, 9), 2)
     assert v2.value == BETTER and not v2.held_by_assumed
-    # Worse: held when A's favourable end is within the margin of B's unfavourable end.
+    # Addendum 2, A2: the rule works one way only. Worse stays worse, shown "probably worse".
     v3 = verdict(Q(1, 0, 6), Q(5, 4, 6, assumed=True), 2)
-    assert v3.value == SAME and v3.held_by_assumed
+    assert v3.value == WORSE and v3.probably and v3.word == "probably worse" and not v3.held_by_assumed
+    t = Table.build([{"water": Q(1, 0, 6), "soil": Q(1), "nitrogen": Q(1), "variety": Q(1)},
+                     {"water": Q(5, 4, 6, assumed=True), "soil": Q(1), "nitrogen": Q(1), "variety": Q(1)}], [1, 1],
+                    {"water": 2, "soil": 0, "nitrogen": 0, "variety": 0})
+    assert t.verdicts_vs(1, "water")[0] == WORSE  # counted as worse for dominance
+    v4 = verdict(Q(1, 0.5, 1.5), Q(5, 4, 6, assumed=True), 2)
+    assert v4.value == WORSE and not v4.probably
 
 
 def test_dominance_requires_as_many_harvests(content):
