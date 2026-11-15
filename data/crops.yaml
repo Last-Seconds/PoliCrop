@@ -25,11 +25,17 @@
 #   sown                    autumn | spring | none
 #   sowing_window, harvest_window   {start: MM-DD, end: MM-DD, basis, source}
 #                           "most active" ranges; rule H2 uses sowing end and harvest end
-#   water_need              {method: fixed, need_in} | {method: self_calibrated}
-#                           | {method: relative_to, crop, offset_in}
+#   water_need              {method: self_calibrated}: the median supply the crop gets on this
+#                           field in its reference position (brief 3, S1: every crop, not only cereals)
+#   water_use               {use_in} | {method: from_yield, seed_lb_ac_per_in: {low, high}}  optional sourced seasonal water use; no longer a need. It drives
+#                           the "may be too dry here" caution (W10): shown when the crop's median
+#                           supply here is under use_in + water.short_threshold_in
 #   root_zone               {value: 0_100cm | 0_150cm}  soil depth whose storage the crop can use
 #   growing_season          {value: <season id in settings water.growing_seasons>}
 #   regional_yield          {value_lb_ac}  2011–2015 averages, >= 18 in precipitation part of the region
+#   zone_yields             {transition_lb_ac, grain_fallow_lb_ac, transition_after_crop: {value_lb_ac, basis}}
+#                           typical yields outside the Annual Crop zone [S27] (addendum item 1); a missing
+#                           zone falls back as brief 2 did (cereals: water-implied; others: nearest wetter zone)
 #   yield_unit              {name, lb_per_unit}  how a farmer states a yield for this crop
 #   residue                 {method: linear_kg_ha, slope, intercept_kg_ha}
 #                           | {method: range_lb_ac, low_lb_ac, high_lb_ac}
@@ -57,6 +63,16 @@ crops:
     root_zone: {value: 0_150cm, basis: sourced, source: S7, note: "Wheat draws water from 6 ft."}
     growing_season: {value: apr_jun, basis: sourced, source: S7}
     regional_yield: {value_lb_ac: 4800, basis: sourced, source: S18, note: "80 bu/ac"}
+    zone_yields:
+      transition_lb_ac: 4680
+      grain_fallow_lb_ac: 2700
+      basis: sourced
+      source: S27
+      note: "Tables 5-12 to 5-14 and 5-A2; 78 bu/ac after fallow (Transition), 45 bu/ac (Grain-Fallow)."
+      transition_after_crop:
+        value_lb_ac: 2100
+        basis: assumed
+        note: "35 bu/ac: the source's unlabelled second figure (30–40 bu/ac), taken as wheat after a harvested crop"
     yield_unit: {name: bu, lb_per_unit: 60}
     residue: {method: linear_kg_ha, slope: 1.1274, intercept_kg_ha: 1175, basis: sourced, source: S9}
     nitrogen_credit: null
@@ -75,6 +91,7 @@ crops:
     root_zone: {value: 0_150cm, basis: sourced, source: S7}
     growing_season: {value: apr_jun, basis: sourced, source: S7}
     regional_yield: {value_lb_ac: 3480, basis: sourced, source: S18, note: "58 bu/ac"}
+    zone_yields: {transition_lb_ac: 3000, grain_fallow_lb_ac: 2400, basis: sourced, source: S27, note: "Tables 5-12 to 5-14 and 5-A2."}
     yield_unit: {name: bu, lb_per_unit: 60}
     residue: {method: linear_kg_ha, slope: 0.8613, intercept_kg_ha: 2068, basis: sourced, source: S9}
     nitrogen_credit: null
@@ -94,6 +111,7 @@ crops:
     root_zone: {value: 0_150cm, basis: assumed, note: "As wheat."}
     growing_season: {value: apr_jun, basis: sourced, source: S7}
     regional_yield: {value_lb_ac: 3000, basis: sourced, source: S18, note: "1.5 tons/ac"}
+    zone_yields: {transition_lb_ac: 3000, grain_fallow_lb_ac: 1900, basis: sourced, source: S27, note: "Tables 5-12 to 5-14 and 5-A2."}
     yield_unit: {name: tons, lb_per_unit: 2000}
     residue: {method: linear_kg_ha, slope: 0.7013, intercept_kg_ha: 1303, basis: sourced, source: S9}
     nitrogen_credit: null
@@ -110,11 +128,13 @@ crops:
     sown: spring
     sowing_window: {start: "04-10", end: "05-15", basis: sourced, source: S24}
     harvest_window: {start: "07-20", end: "08-20", basis: sourced, source: S24}
-    water_need: {method: fixed, need_in: 9.3, basis: sourced, source: S3,
-                 note: "Pendleton, Oregon, 1983–84, wetter-than-average years."}
+    water_need: {method: self_calibrated, basis: assumed, note: "As cereals (brief 3, S1)."}
+    water_use: {use_in: 9.3, basis: sourced, source: S3,
+                note: "Pendleton, Oregon, 1983–84, wetter-than-average years."}
     root_zone: {value: 0_100cm, basis: sourced, source: "S2, S3, S16", note: "Legume roots are shallower."}
     growing_season: {value: apr_jul, basis: assumed, note: "From the harvest dates."}
     regional_yield: {value_lb_ac: 1700, basis: sourced, source: S18}
+    zone_yields: {transition_lb_ac: 1600, basis: sourced, source: S27, note: "Tables 5-12 to 5-14 and 5-A2."}
     yield_unit: {name: lb, lb_per_unit: 1}
     residue: {method: range_lb_ac, low_lb_ac: 1500, high_lb_ac: 2000, basis: sourced, source: S8}
     nitrogen_credit:
@@ -136,23 +156,26 @@ crops:
     sown: autumn
     sowing_window: {start: "08-25", end: "09-07", basis: sourced, source: S4, note: "From a drier site (Ritzville)."}
     harvest_window: {start: "07-01", end: "07-15", basis: sourced, source: S4, note: "From a drier site (Ritzville)."}
-    water_need: {method: relative_to, crop: winter_wheat, offset_in: -1.2, basis: derived, source: S4}
+    water_need: {method: self_calibrated, basis: assumed,
+                 note: "As cereals (brief 3, S1). Brief 2 used winter wheat's need less 1.2 in [S4]."}
     root_zone: {value: 0_100cm, basis: sourced, source: "S2, S3, S16"}
     growing_season: {value: apr_jun, basis: sourced, source: S7, note: "Winter crops: April to June."}
     regional_yield: {value_lb_ac: 2000, basis: sourced, source: S18,
                      note: "As given in Appendix A of the brief; not in the crop table draft's yield table."}
+    zone_yields: {grain_fallow_lb_ac: 1500, basis: sourced, source: S27, note: "Tables 5-12 to 5-14 and 5-A2."}
     yield_unit: {name: lb, lb_per_unit: 1}
     residue: {method: linear_kg_ha, slope: 1.3427, intercept_kg_ha: 1327, basis: sourced, source: S9,
               note: "Austrian winter pea relationship."}
     nitrogen_credit:
       method: tiers_by_yield
-      tiers: [{below_lb_ac: 1500, credit_lb_ac: 10}, {below_lb_ac: 2500, credit_lb_ac: 15}, {credit_lb_ac: 20}]
+      tiers: [{below_lb_ac: 1500, credit_lb_ac: 10}, {below_lb_ac: 2500, credit_lb_ac: 15},
+              {below_lb_ac: 3750, credit_lb_ac: 20}, {credit_lb_ac: 30}]
       basis: assumed
-      note: "The spring pea tiers [S11]."
+      note: "30 lb N/ac above 3,750 lb/ac is sourced [S27, Table 5-9]; below that, the spring pea tiers [S11], assumed (addendum item 2)."
     critical_ph: {low: 5.5, high: 5.5, basis: assumed, note: "The source lists spring peas."}
     income: null
     limits:
-      - {text: "Killed at −6 °F without snow cover in one trial year.", source: S4}
+      - {text: "Winter hardiness depends on the variety: from −5 °F ('Lynx') to +10 °F (Austrian winter pea).", source: S27}
 
   - id: lentils
     name: Lentils
@@ -163,10 +186,12 @@ crops:
     sowing_window: {start: "04-10", end: "04-30", basis: assumed,
                     note: "From \"early spring; after April lowers yield\" [S2]."}
     harvest_window: {start: "08-01", end: "08-31", basis: sourced, source: S2}
-    water_need: {method: fixed, need_in: 9.7, basis: sourced, source: S3}
+    water_need: {method: self_calibrated, basis: assumed, note: "As cereals (brief 3, S1)."}
+    water_use: {use_in: 9.7, basis: sourced, source: S3}
     root_zone: {value: 0_100cm, basis: sourced, source: "S2, S3, S16"}
     growing_season: {value: apr_jul, basis: assumed, note: "From the harvest dates."}
     regional_yield: {value_lb_ac: 1100, basis: sourced, source: S18}
+    zone_yields: {transition_lb_ac: 1200, basis: sourced, source: S27, note: "Tables 5-12 to 5-14 and 5-A2."}
     yield_unit: {name: lb, lb_per_unit: 1}
     residue: {method: range_lb_ac, low_lb_ac: 1500, high_lb_ac: 2000, basis: sourced, source: S8}
     nitrogen_credit: {method: fixed, credit_lb_ac: 10, basis: sourced, source: S11}
@@ -184,14 +209,19 @@ crops:
                     note: "Month sourced [S15]; window bounds assumed."}
     harvest_window: {start: "07-25", end: "08-31", basis: assumed,
                      note: "Month sourced [S15]; bounds assumed around two observed harvests (28 Jul, 18 Aug)."}
-    water_need: {method: fixed, need_in: 9.8, basis: sourced, source: S3}
+    water_need: {method: self_calibrated, basis: assumed, note: "As cereals (brief 3, S1)."}
+    water_use: {use_in: 9.8, basis: sourced, source: S3}
     root_zone: {value: 0_100cm, basis: sourced, source: "S2, S3, S16"}
     growing_season: {value: apr_jul, basis: assumed, note: "From the harvest dates."}
     regional_yield: {value_lb_ac: 1200, basis: sourced, source: S18}
     yield_unit: {name: lb, lb_per_unit: 1}
     residue: {method: range_lb_ac, low_lb_ac: 1500, high_lb_ac: 2000, basis: assumed, note: "As peas and lentils."}
-    nitrogen_credit: {method: range, low_lb_ac: 10, high_lb_ac: 20, basis: sourced, source: S23,
-                      note: "The general figure for pulse crops; no chickpea-specific figure exists."}
+    nitrogen_credit:
+      method: tiers_by_yield
+      tiers: [{below_lb_ac: 2000, credit_lb_ac: 10}, {credit_lb_ac: 15}]
+      basis: sourced
+      source: S27
+      note: "15 lb N/ac above 2,000 lb/ac is sourced (Table 5-9); 10 lb N/ac below that is assumed (addendum item 2)."
     critical_ph: null
     income: {return_usd_ac: 63, label: Chickpeas, basis: sourced, source: S18}
     limits:
@@ -208,11 +238,13 @@ crops:
     sown: spring
     sowing_window: {start: "04-01", end: "05-10", basis: sourced, source: "S15, S17, S26"}
     harvest_window: {start: "08-01", end: "08-31", basis: sourced, source: "S15, S17, S26"}
-    water_need: {method: fixed, need_in: 9.8, basis: assumed,
-                 note: "As chickpeas; a Pullman trial ranks its soil-water use between peas and chickpeas [S15]."}
+    water_need: {method: self_calibrated, basis: assumed, note: "As cereals (brief 3, S1)."}
+    water_use: {method: from_yield, seed_lb_ac_per_in: {low: 65, high: 105}, basis: derived, source: S28,
+                note: "Expected yield ÷ 105 lb seed per acre per inch (range to ÷ 65), winter canola trials \"similar to spring canola in the area\" (addendum item 4)."}
     root_zone: {value: 0_150cm, basis: sourced, source: S19, note: "Canola roots reach 46–65 in."}
     growing_season: {value: apr_jul, basis: assumed, note: "From the harvest dates."}
     regional_yield: {value_lb_ac: 1500, basis: sourced, source: S18}
+    zone_yields: {transition_lb_ac: 1500, grain_fallow_lb_ac: 500, basis: sourced, source: S27, note: "Tables 5-12 to 5-14 and 5-A2."}
     yield_unit: {name: lb, lb_per_unit: 1}
     residue: {method: harvest_index, h_low: 0.20, h_high: 0.35, basis: derived, source: S19,
               note: "Seed is 20–35% of above-ground dry matter."}
@@ -231,11 +263,14 @@ crops:
     sown: autumn
     sowing_window: {start: "08-01", end: "09-15", basis: sourced, source: S5}
     harvest_window: {start: "07-15", end: "08-15", basis: assumed, note: "As winter wheat."}
-    water_need: {method: relative_to, crop: winter_wheat, offset_in: 0, basis: assumed,
-                 note: "The winter wheat need."}
+    water_need: {method: self_calibrated, basis: sourced, source: S27,
+                 note: "Grouped with winter wheat for water use (Table 5-A3)."}
+    water_use: {method: from_yield, seed_lb_ac_per_in: {low: 65, high: 105}, basis: derived, source: S28,
+                note: "Expected yield ÷ 105 lb seed per acre per inch (range to ÷ 65) (addendum item 4)."}
     root_zone: {value: 0_150cm, basis: sourced, source: S19}
     growing_season: {value: apr_jun, basis: sourced, source: S7, note: "Winter crops: April to June."}
-    regional_yield: {value_lb_ac: 3000, basis: assumed, note: "Twice spring canola, after [S5]."}
+    regional_yield: {value_lb_ac: 3000, basis: sourced, source: S27, note: "Table 5-A2 (addendum item 1)."}
+    zone_yields: {grain_fallow_lb_ac: 1500, basis: sourced, source: S27, note: "Tables 5-12 to 5-14 and 5-A2."}
     yield_unit: {name: lb, lb_per_unit: 1}
     residue: {method: harvest_index, h_low: 0.20, h_high: 0.35, basis: derived, source: S19}
     nitrogen_credit: null

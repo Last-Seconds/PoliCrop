@@ -116,30 +116,36 @@ class NoOverlappingDates(_Base):
 
 @register_rule
 class LegumeSpacing(_Base):
-    """H3: the same legume crop at most once in any `window_years` consecutive crop years (cyclic)."""
+    """H3: any two legume crops at least `window_years` crop years apart, counted cyclically.
+
+    Brief 3 (S1): pulse crops share diseases, so a different legume counts the same
+    as the same legume returning [S16]. A three-year plan then holds one legume at most.
+    """
     id = "legume_spacing"
-    label = "The same legume at most once in 3 years"
+    label = "Legumes at least 3 years apart"
 
     def __init__(self, window_years: int = 3, cyclic: bool = True):
         self.window = int(window_years)
         self.cyclic = cyclic
-        self.label = f"The same legume at most once in {self.window} years"
+        self.label = f"Legumes at least {self.window} years apart"
 
     def check(self, strategy: Strategy, content: Content) -> RuleResult:
         steps = strategy.steps
         n = len(steps)
-        seq = [s.crop_id for s in steps]
-        # Unroll the rotation so windows that cross into the next cycle are checked too.
-        ext = [seq[k % n] for k in range(n + self.window - 1)] if self.cyclic else seq
+        # Unroll the rotation so gaps that cross into the next cycle are checked too
+        # (a single legume in a plan shorter than the window meets itself).
+        ext = [steps[k % n] for k in range(n + self.window - 1)] if self.cyclic else list(steps)
         for i, s in enumerate(steps):
             if s.role != "legume":
                 continue
             for gap in range(1, self.window):
                 j = i + gap
-                if j < len(ext) and ext[j] == seq[i]:
-                    return self.result(False, f"{_name(content, seq[i])} returns after {gap} year{'s' if gap > 1 else ''}; "
-                                              f"it should appear at most once in any {self.window} years.")
-        return self.result(True, f"No legume returns within {self.window} years.")
+                if j < len(ext) and ext[j].role == "legume":
+                    a, b = _name(content, s.crop_id), _name(content, ext[j].crop_id)
+                    what = f"{a} returns" if ext[j].crop_id == s.crop_id else f"{b} follows {a.lower()}"
+                    return self.result(False, f"{what} after {gap} year{'s' if gap > 1 else ''}; legumes should be "
+                                              f"at least {self.window} years apart.")
+        return self.result(True, f"Legumes are at least {self.window} years apart.")
 
 
 @register_rule

@@ -30,14 +30,17 @@ class Verdict:
     value: int | None  # 1 better, 0 about the same, -1 worse, None not assessed
     held_by_assumed: bool = False  # the central verdict was reduced to "about the same" by the assumed-value rule
     central_value: int | None = None
+    probably: bool = False  # addendum 2, A2: "worse" that rests on an assumed figure: shown "probably worse"
 
     @property
     def word(self) -> str:
-        return "not assessed" if self.value is None else WORDS[self.value]
+        if self.value is None:
+            return "not assessed"
+        return "probably worse" if self.probably else WORDS[self.value]
 
     def to_dict(self) -> dict:
         return {"value": self.value, "word": self.word, "held_by_assumed": self.held_by_assumed,
-                "central_value": self.central_value}
+                "central_value": self.central_value, "probably": self.probably}
 
 
 def _sign(d: float, margin: float) -> int:
@@ -59,11 +62,13 @@ def verdict(a: Quantity, b: Quantity, margin: float) -> Verdict:
     # Take both ranges at the ends least favourable to this verdict.
     if v == BETTER:
         d2 = s * (a.unfavourable() - b.favourable())
-    else:
-        d2 = s * (a.favourable() - b.unfavourable())
-    if _sign(d2, margin) != v:
-        return Verdict(SAME, True, v)
-    return Verdict(v, False, v)
+        if _sign(d2, margin) != v:
+            return Verdict(SAME, True, v)
+        return Verdict(v, False, v)
+    # Addendum 2, A2: the rule works one way only. "Worse" stays worse; if it does not survive the ranges,
+    # it is "probably worse", still counted as worse for ordering and dominance.
+    d2 = s * (a.favourable() - b.unfavourable())
+    return Verdict(v, False, v, probably=_sign(d2, margin) != v)
 
 
 # ------------------------------------------------------------------------------------------- vectorised form
@@ -105,8 +110,8 @@ class Table:
             d_better = s * (self.unfav[m][sl] - self.fav[m][j])
             d_worse = s * (self.fav[m][sl] - self.unfav[m][j])
             keep_b = (v == BETTER) & (d_better > mg + 1e-12)
-            keep_w = (v == WORSE) & (d_worse < -mg - 1e-12)
-            v = np.where(risky & ~(keep_b | keep_w), SAME, v)
+            del d_worse  # addendum 2, A2: "worse" is never softened to "about the same"
+            v = np.where(risky & (v == BETTER) & ~keep_b, SAME, v)
         ok = self.assessed[m][sl] & self.assessed[m][j]
         return np.where(ok, v, SAME)
 
@@ -144,12 +149,14 @@ class Table:
 # ------------------------------------------------------------------------------------------- ordering and selection
 
 def order_key(verdicts: dict[str, Verdict], q: dict[str, Quantity], priorities: list[str], harvests: int,
-              nearby: float, dry_mode: bool) -> tuple:
-    """Sort key (ascending = first): verdicts in priority order, then quantities, then how common nearby."""
-    key: list = []
+              nearby: float, dry_mode: bool, seen_nearby: bool = True, serious: bool = False) -> tuple:
+    """Sort key (ascending = first): options without a serious caution first (addendum 2, A1), then verdicts in
+    priority order, then options seen nearby before those not (brief 3, S1), then quantities, then nearby use."""
+    key: list = [1 if serious else 0]
     for m in priorities:
         v = verdicts[m].value
         key.append(-(v if v is not None else 0))
+    key.append(0 if seen_nearby else 1)
     if dry_mode:
         key.append(-harvests)
     top = q[priorities[0]]

@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
+import numpy as np
 from shapely.geometry import shape
 
 from . import climate as climate_mod
@@ -30,10 +31,12 @@ from .geometry import FieldError, FieldGeometry, buffer_geojson, check_field, fi
 from .ports import CropHistoryProvider, RegionProvider, SoilProvider, VegetationProvider, WeatherProvider
 from .strategies.generate import build_pool, pseudo_crop
 from .strategies.inputs import FarmerInputs
-from .strategies.plan import run_plan
+from .strategies.plan import build_field_model, run_plan
+from . import fitting as fitting_mod
+from . import records as records_mod
 from .strategies.rules import build_rules
 from .strategies.warnings import check_configs
-from .present import QUESTIONS, present
+from .present import MODEL_GAPS, QUESTIONS, present
 from .strategies.measures import MEASURE_LABELS, TILLAGE_LABELS
 from .weather import DailySeries
 from . import units
@@ -61,6 +64,7 @@ class Providers:
     sequences: Any = None  # optional: crop-map sequence histogram around a field
     boundaries: Any = None  # optional FieldBoundaryProvider: tap a field to pick it
     soil_moisture: Any = None  # optional: weekly satellite topsoil moisture grids
+    oni: Any = None  # optional: NOAA Oceanic Niño Index text (brief 3, part D; information only)
 
 
 @dataclass
@@ -406,7 +410,29 @@ class FieldService:
         series = self.weather_series(f)
         soil = self.field_soil(f)
         nearby = self.nearby_use(f)
-        result = run_plan(self.content, existing, phased, pool, self.rules, series, soil, inp, first_year, nearby)
+        fit_box: dict = {}
+        history_map = {cy.year: cy.crop_id for cy in hist if cy.crop_id}
+        now_year = climate_mod.crop_year_of(self.today, start_month)
+
+        def fit_hook(fm):
+            """Brief 3, parts B, C and E: the farmer's records change levels, and maybe two constants."""
+            if not inp.records:
+                return None
+            regional = {}
+            for c in self.content.offered_crops():
+                y = fm.expected_yield(c)
+                if y.kg_ha:
+                    regional[c.id] = y.kg_ha
+            ff = fitting_mod.fit_field(inp.records, self.content, series, soil.capacity_mm, regional, history_map,
+                                       now_year, inp.fit, inp.example_records)
+            fit_box["fit"] = ff
+            fm2 = build_field_model(self.content, series, soil, phased, inp, ff.constants) if ff.constants else fm
+            fm2.levels, fm2.example = ff.levels, inp.example_records
+            fm2._cache.clear()
+            return fm2
+
+        result = run_plan(self.content, existing, phased, pool, self.rules, series, soil, inp, first_year, nearby,
+                          fit_hook=fit_hook)
         assumed_years = list(range(last_year + 1, first_year))
         caveats = []
         unknown = [c.name for c in existing if c.role == "unknown"]
@@ -443,8 +469,230 @@ class FieldService:
             "soil": soil.to_dict(s),
             "nearby": nearby.describe() if nearby is not None else None,
             "caveats": caveats,
+            "records": self._records_section(inp, fit_box.get("fit"), result, hist),
         }
         return present(result, self.content, extra)
+
+    def _records_section(self, inp: FarmerInputs, ff, result, hist) -> dict:
+        """Expected against actual, odd years to ask about, levels, and the fit (brief 3, parts B, C, E)."""
+        if ff is None:
+            return {"count": 0}
+        d = ff.to_dict(self.content)
+        names = {c.id: c.name for c in self.content.crops}
+        questions = [{"year": r["year"], "crop": r["crop"], "crop_name": names.get(r["crop"], r["crop"]),
+                      "key": f"{r['year']}:{r['crop']}", "answer": r["reason"]}
+                     for r in d["comparison"]["rows"] if r["disagrees"]]
+        for r in d["comparison"]["rows"]:
+            r["crop_name"] = names.get(r["crop"], r["crop"])
+            r["reason_words"] = records_mod.REASON_WORDS.get(r["reason"]) if r["reason"] else None
+            r["excluded"] = r["reason"] in ("disease_pests_weeds", "hail_frost", "management")
+        used = [{"crop": names.get(k, k), "level_lb_ac": v["level_lb_ac"], "regional_lb_ac": v["regional_lb_ac"],
+                 "w": v["w"], "n_records": v["n_records"],
+                 "borrowed_from": [names.get(b, b) for b in v["borrowed_from"]]}
+                for k, v in d["levels"].items() if v["n_records"] or v["borrowed_from"]]
+        return {"count": len(inp.records), "example": inp.example_records, "comparison": d["comparison"],
+                "questions": questions, "reasons": records_mod.REASON_WORDS, "levels": used,
+                "sensitivities": {names.get(k, k): v for k, v in d["sensitivities"].items()},
+                "fit": d["fit"], "fit_on": inp.fit, "constants": d["constants"]}
+
+    def records_template(self, f: FieldGeometry, corrections: dict | None = None) -> bytes:
+        """The blank sheet: this field's years and crops from the crop history, an empty harvest column."""
+        hist = self.history(f, corrections or {})
+        rows = []
+        for y in hist["years"]:
+            cid = y.get("crop_id")
+            if not cid or not self.content.has_crop(cid):
+                continue
+            c = self.content.crop(cid)
+            if c.role in ("fallow", "cover_crop", "unknown") or not c.yield_unit:
+                continue
+            unit = {"bu": "bu", "tons": "ton"}.get(c.yield_unit["name"], "lb")
+            if cid == "spring_barley":
+                unit = "bu"
+            rows.append((y["year"], c.name, unit))
+        return records_mod.write_xlsx(records_mod.template_rows(sorted(rows, reverse=True)))
+
+    def read_records(self, f: FieldGeometry, name: str, data: bytes, columns: dict | None = None) -> dict:
+        """Read an uploaded table for the preview. The file is read here and discarded; nothing is kept."""
+        rows = records_mod.read_file(name, data)
+        acres = units.ha_to_acres(f.area_ha())
+        typical = self._typical_lb_ac(f)
+        out = records_mod.read_table(rows, self.content, acres, typical, columns)
+        return {**out.to_dict(), "acres": round(acres), "names": {c.id: c.name for c in self.content.crops}}
+
+    def check_records(self, f: FieldGeometry, rows: list) -> dict:
+        """Check rows typed in (the same rules as a file): year, crop, harvest, unit, per acre or total, acres."""
+        typical = self._typical_lb_ac(f)
+        out = []
+        for i, r in enumerate(rows[:records_mod.MAX_ROWS] if isinstance(rows, list) else []):
+            if not isinstance(r, dict):
+                continue
+            row = records_mod.ReadRow(line=i + 1, raw=[])
+            try:
+                row.year = int(r.get("year")) if r.get("year") not in (None, "") else None
+            except (TypeError, ValueError):
+                row.year = None
+            row.crop = records_mod.match_crop(str(r.get("crop") or ""), self.content)
+            try:
+                row.value = float(r["value"]) if r.get("value") not in (None, "") else None
+            except (TypeError, ValueError):
+                row.value = None
+            row.unit = records_mod.match_unit(str(r.get("unit") or ""))
+            row.basis = "total" if r.get("basis") == "total" else "per_acre"
+            try:
+                acres = float(r.get("acres") or units.ha_to_acres(f.area_ha()))
+            except (TypeError, ValueError):
+                acres = units.ha_to_acres(f.area_ha())
+            out.append(records_mod.check_row(row, self.content, acres, typical).to_dict())
+        return {"rows": out}
+
+    def _typical_lb_ac(self, f: FieldGeometry, corrections: dict | None = None) -> dict[str, float]:
+        """Brief 2's expected yield per crop on this field (zone figures), in the positions its history shows."""
+        from .strategies.plan import build_field_model as bfm
+        series = self.weather_series(f)
+        soil = self.field_soil(f)
+        try:
+            hist = self.history(f, corrections or {})
+            ref = [self.content.crop(y["crop_id"]) for y in hist["years"][-6:]
+                   if y.get("crop_id") and self.content.has_crop(y["crop_id"])]
+        except Exception:  # noqa: BLE001 - a missing history only changes the position assumed
+            ref = []
+        fm = bfm(self.content, series, soil, ref or [self.content.crop("winter_wheat")], FarmerInputs())
+        out = {}
+        for c in self.content.offered_crops():
+            y = fm.expected_yield(c)
+            if y.kg_ha:
+                out[c.id] = units.kg_ha_to_lb_ac(y.kg_ha)
+        return out
+
+    def example_records(self, f: FieldGeometry, corrections: dict | None = None) -> dict:
+        """Records made from the model plus noise (brief 3, section 10). Never real; always labelled so."""
+        hist = self.history(f, corrections or {})
+        history_map = {y["year"]: y.get("crop_id") for y in hist["years"] if y.get("crop_id")}
+        series = self.weather_series(f)
+        soil = self.field_soil(f)
+        regional = {k: units.lb_ac_to_kg_ha(v) for k, v in self._typical_lb_ac(f, corrections).items()}
+        years = sorted(history_map)[-10:]
+        recs = fitting_mod.example_records(self.content, series, soil.capacity_mm, regional, history_map, years,
+                                           seed=int(f.key()[:8], 16))
+        return {"records": recs, "label": "example data, not a real farm"}
+
+    # ---- this year so far (brief 3, part D) -------------------------------------------
+    def season(self, f: FieldGeometry, inputs: dict | None = None, as_of: dt.date | None = None) -> dict:
+        """The winter so far against past years, for the slot of the current rotation in progress.
+
+        `as_of` (a past date) replays the check from the grid record instead of a station: for demonstrations
+        and for checking the method. Without it, the panel shows only from 1 January to 31 May."""
+        from . import season as season_mod
+        from .replay import build_replay
+        s = self.content.settings
+        inp = FarmerInputs.parse(inputs or {}, self.content)
+        today = as_of or self.today
+        start_month = int(s["climate.crop_year_start_month"])
+        cy = climate_mod.crop_year_of(today, start_month)
+        out = {"date": today.isoformat(), "show": season_mod.in_window(today) or as_of is not None}
+        hist_section = self.history(f, inp.corrections)
+        hist = [history_mod.CropYear(**y) for y in hist_section["years"]]
+        rotation = history_mod.existing_rotation(hist, int(hist_section["rotation"]["period"]))
+        if len(rotation) < 2:
+            return {**out, "status": "unavailable", "reason": "not enough crop history"}
+        crops = [self.content.crop(cy_.crop_id) if cy_.crop_id and self.content.has_crop(cy_.crop_id) else None
+                 for cy_ in rotation]
+        n = len(crops)
+        now_crop = crops[(cy - rotation[0].year) % n]
+        prev_crop = crops[(cy - 1 - rotation[0].year) % n]
+        if now_crop is None:
+            return {**out, "status": "unavailable", "reason": "this year's crop is not one the tool has figures for"}
+        series = self.weather_series(f)
+        soil = self.field_soil(f)
+        rp = build_replay(series, soil.capacity_mm, s)
+        kind = {"fallow": "fallow", "cover_crop": "cover"}.get(prev_crop.role if prev_crop else "", "harvested")
+        # A fallow year is judged as the spring crop it could be replaced by: spring wheat in its place.
+        judged = now_crop if now_crop.role not in ("fallow", "cover_crop") else self.content.crop("spring_wheat")
+        root, gs = judged.root_zone["value"], judged.growing_season["value"]
+        pool = self.crop_pool(f)
+        # Alternatives in the same role only when the slot is a spring crop or fallow (brief 3, part D).
+        alts = [] if now_crop.sown == "autumn" else [
+            {"name": c.name, "kind": kind, "root": c.root_zone["value"], "season": c.growing_season["value"]}
+            for c in pool.crops if c.sown == "spring" and c.id != now_crop.id and c.root_zone and c.growing_season
+            and (now_crop.role in ("fallow", "cover_crop") or c.role == now_crop.role)][:4]
+        recs = [{"year": r.year, "crop": self.content.crop(r.crop).name, "yield_lb_ac": r.yield_lb_ac,
+                 "unit": (self.content.crop(r.crop).yield_unit or {}).get("name")} for r in inp.records]
+        mean_in = units.mm_to_in(float(np.mean(rp.crop_year_precip_mm)))
+        season_mm, source = None, {}
+        if as_of is not None:
+            season_mm = season_mod.gain_to(series, cy, today)
+            source = {"kind": "grid", "text": "Replayed from the grid weather record (Daymet) for a past date."}
+            if season_mm is None:
+                return {**out, "status": "unavailable", "reason": "the grid record does not cover that date"}
+        else:
+            if not out["show"]:
+                return {**out, "status": "hidden"}
+            st = self._season_station(f, series, today)
+            if st.get("status") != "ok":
+                return {**out, "status": "unavailable", "reason": st.get("reason", "no station")}
+            season_mm = st["season_mm"]
+            source = {"kind": "station", "text": f"From the {st['name']} weather station ({st['distance_mi']} miles), "
+                                                 f"scaled to your field (×{st['ratio']}, {st['common_years']} years), through "
+                                                 f"{st['through']}."}
+        summ = season_mod.season_summary(today=today, season_mm=season_mm, rp=rp, series=series, kind=kind, root=root,
+                                         season=gs, crop_name=now_crop.name, crop_role=now_crop.role, settings=s,
+                                         mean_precip_in=mean_in, alternatives=alts, records=recs, source=source)
+        return {**out, **summ, "show": out["show"]}
+
+    def _season_station(self, f: FieldGeometry, series: DailySeries, today: dt.date) -> dict:
+        from . import season as season_mod
+        from .station import candidate_stations, display_name
+        if self.providers.stations is None:
+            return {"status": "unavailable", "reason": "no weather-station source is configured"}
+        s = self.content.settings
+        lon, lat = f.centroid()
+        stations = (self.providers.stations.stations(str(self.content.region.get("fips"))) or {}).get("stations") or []
+        cands = candidate_stations(stations, lon, lat, period=(series.first, series.last),
+                                   min_years=float(s["station_check.min_years"]),
+                                   max_distance_km=float(s["station_check.max_distance_km"]))
+        reason = "no long-record station nearby"
+        cy = climate_mod.crop_year_of(today, 9)
+        for c in cands[: int(s["station_check.max_candidates"])]:
+            try:
+                raw = self.providers.stations.daily(c["id"], dt.date(cy - 31, 9, 1).isoformat(), today.isoformat())
+            except Exception as exc:  # noqa: BLE001
+                reason = f"the station could not be read ({exc})"
+                continue
+            got = season_mod.station_season(raw.get("days") or [], series, today)
+            if got["status"] == "ok":
+                return {**got, "name": display_name(c.get("name", c["id"])), "distance_mi": round(c["distance_km"] / 1.609)}
+            reason = got.get("reason", reason)
+        return {"status": "unavailable", "reason": reason}
+
+    def season_replay(self, f: FieldGeometry) -> dict:
+        """Done-criteria for part D: replayed over every past year, how the end-of-March check did."""
+        from . import season as season_mod
+        from .replay import build_replay
+        s = self.content.settings
+        rp = build_replay(self.weather_series(f), self.field_soil(f).capacity_mm, s)
+        thr = units.in_to_mm(float(s["water.short_threshold_in"]))
+        out = {}
+        for label, root, gs in (("spring cereal (5 ft roots)", "0_150cm", "apr_jun"),
+                                ("spring legume (3 ft roots)", "0_100cm", "apr_jul")):
+            pyrs = season_mod.past_years(rp, "harvested", root, gs, thr)
+            r = season_mod.replay_check(pyrs)
+            r["message"] = ("Your soil usually refills over winter; spring rain decides the year here."
+                            if r["refill_share"] >= season_mod.REFILL_SHARE else None)
+            out[label] = r
+        return out
+
+    def enso(self, f: FieldGeometry | None) -> dict:
+        """El Niño as information only (About this area)."""
+        from . import season as season_mod
+        oni = self.providers.oni.text() if getattr(self.providers, "oni", None) is not None else None
+        if oni is None:
+            return {"status": "unavailable"}
+        if f is None:
+            return {"status": "no_field"}
+        series = self.weather_series(f)
+        years = list(range(1982, climate_mod.crop_year_of(self.today, 9)))
+        return season_mod.enso_summary(oni, series, years)
 
     # ---- weather station check -----------------------------------------------------
     def station(self, f: FieldGeometry) -> dict:
@@ -656,7 +904,8 @@ class FieldService:
         c = self.content
         return {
             "region": {"id": r.get("id"), "name": r.get("name"), "geometry": r.get("geometry"),
-                       "source": r.get("source")},
+                       "source": r.get("source"), "places": c.region.get("places") or []},
+            "model_gaps": MODEL_GAPS,
             "roles": [x.to_dict() for x in c.roles],
             "crops": [x.to_dict() for x in c.crops],
             "offered_crops": [x.id for x in c.offered_crops()],

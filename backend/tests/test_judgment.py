@@ -73,20 +73,48 @@ def test_replay_windows_match_hand_sums(content, series):
     assert (lo <= hi + 1e-9).all()  # the "low" end has the least water
 
 
-def test_needs_self_calibrated_relative_and_fixed(content, series):
+def test_every_need_is_self_calibrated(content, series):
+    """Brief 3, S1: every crop's need is its median supply here in its reference position."""
     fm = model(content, series, reference=("fallow", "winter_wheat"))
     ww = content.crop("winter_wheat")
     after_fallow = fm.base.supply_for("0_150cm", "apr_jun", "fallow")
     assert fm.reference_kinds("winter_wheat") == ["fallow"]
     assert fm.need(ww)["central"] == pytest.approx(np.median(after_fallow))
-    assert fm.need(content.crop("winter_peas"))["central"] == pytest.approx(fm.need(ww)["central"] - IN(1.2))
-    assert fm.need(content.crop("winter_canola"))["central"] == pytest.approx(fm.need(ww)["central"])
-    assert fm.need(content.crop("lentils"))["low"] == pytest.approx(IN(9.7))
-    # a cereal not in the current rotation is calibrated "after a harvested crop"
+    harvested = fm.base.supply_for("0_150cm", "apr_jun", "harvested")
+    assert fm.need(content.crop("winter_canola"))["central"] == pytest.approx(np.median(harvested))
+    for cid in ("lentils", "chickpeas", "spring_peas"):
+        assert fm.need(content.crop(cid))["central"] == pytest.approx(
+            np.median(fm.base.supply_for("0_100cm", "apr_jul", "harvested")))
     sw = content.crop("spring_wheat")
     assert fm.reference_kinds("spring_wheat") == ["harvested"]
-    assert fm.need(sw)["central"] == pytest.approx(np.median(fm.base.supply_for("0_150cm", "apr_jun", "harvested")))
+    assert fm.need(sw)["central"] == pytest.approx(np.median(harvested))
     assert fm.need(content.crop("fallow")) is None
+
+
+@pytest.mark.parametrize("scale", [0.5, 1.0, 1.5])
+def test_swapping_spring_crops_does_not_change_the_water_verdict(content, scale):
+    s = DailySeries.from_raw(FakeWeather(short=False, scale=scale).daily(0, 0))
+    fm = model(content, s, reference=("winter_wheat", "spring_wheat", "chickpeas"))
+    mg = margins(content.settings)["water"]
+    spring = ["spring_wheat", "spring_barley", "chickpeas", "lentils", "spring_peas", "spring_canola"]
+    for a in spring:
+        for b in spring:
+            qa = water_measure(crops(content, "winter_wheat", "spring_wheat", a), fm)
+            qb = water_measure(crops(content, "winter_wheat", "spring_wheat", b), fm)
+            assert verdict(qa, qb, mg).value == SAME, (a, b, qa.central, qb.central)
+
+
+def test_too_dry_uses_the_sourced_water_use(content):
+    dry = model(content, DailySeries.from_raw(FakeWeather(short=False, scale=0.4).daily(0, 0)))
+    wet = model(content, DailySeries.from_raw(FakeWeather(short=False, scale=1.6).daily(0, 0)))
+    lent = content.crop("lentils")
+    t = dry.too_dry(lent)
+    assert t["use_mm"] == pytest.approx(IN(9.7)) and t["dry"]
+    assert t["median_supply_mm"] == pytest.approx(dry.need(lent)["central"])
+    assert not wet.too_dry(lent)["dry"]
+    assert dry.too_dry(content.crop("winter_wheat")) is None  # no sourced use figure: no caution
+    assert "W10" in codes(content, dry, "winter_wheat", "lentils")
+    assert "W10" not in codes(content, wet, "winter_wheat", "lentils")
 
 
 def test_fallow_helps_the_following_wheat(content, series):
@@ -161,8 +189,12 @@ def test_nitrogen_tiers_ranges_and_average(content, series):
     assert units.kg_ha_to_lb_ac(q.central) == pytest.approx(20 / 3)  # 20 lb above 2,500 lb of peas, over 3 years
     fm2 = model(content, series, yields={"spring_peas": 1000})
     assert units.kg_ha_to_lb_ac(nitrogen_measure(crops(content, "winter_wheat", "spring_peas"), fm2).central) == pytest.approx(5)
-    chick = nitrogen_measure(crops(content, "winter_wheat", "chickpeas"), fm)
-    assert units.kg_ha_to_lb_ac(chick.low) == pytest.approx(5) and units.kg_ha_to_lb_ac(chick.high) == pytest.approx(10)
+    # Addendum item 2: chickpeas give 15 lb above 2,000 lb/ac, 10 below; winter peas 30 above 3,750 lb/ac.
+    chick = nitrogen_measure(crops(content, "winter_wheat", "chickpeas"), fm)  # 1,200 lb regional yield
+    assert units.kg_ha_to_lb_ac(chick.central) == pytest.approx(5)
+    hi = model(content, series, yields={"chickpeas": 2400, "winter_peas": 4000})
+    assert units.kg_ha_to_lb_ac(nitrogen_measure(crops(content, "winter_wheat", "chickpeas"), hi).central) == pytest.approx(7.5)
+    assert units.kg_ha_to_lb_ac(nitrogen_measure(crops(content, "winter_wheat", "winter_peas"), hi).central) == pytest.approx(15)
     wp = nitrogen_measure(crops(content, "winter_peas", "winter_wheat"), fm)
     assert any(a.key == "nitrogen:winter_peas" for a in wp.assumed)  # the spring pea tiers, assumed
     assert nitrogen_measure(crops(content, "fallow", "winter_wheat"), fm).central == 0
@@ -279,12 +311,12 @@ def test_brief_example_ww_sw_chickpeas_warns_w1(content, series):
     assert "W1" not in codes(content, fm, "winter_wheat", "spring_wheat", "chickpeas", "spring_barley")
 
 
-def test_w2_w3_w9_dry_and_spacing(content):
+def test_w3_w9_w10_dry(content):
     dry = DailySeries.from_raw(FakeWeather(short=False, scale=0.4).daily(0, 0))
     fm = model(content, dry)
     assert units.mm_to_in(fm.mean_precip_mm) < 12
     ws = codes(content, fm, "spring_canola", "winter_wheat", "spring_peas", "spring_wheat", "lentils")
-    assert {"W3", "W9", "W2"} <= set(ws)
+    assert {"W3", "W9", "W10"} <= set(ws) and "W2" not in ws
     wet = model(content, DailySeries.from_raw(FakeWeather(short=False, scale=1.5).daily(0, 0)))
     assert not ({"W3", "W9"} & set(codes(content, wet, "spring_canola", "winter_wheat", "spring_peas")))
 
@@ -303,7 +335,7 @@ def test_w4_uses_the_farmers_ph_only(content, series):
 def test_w5_w6_are_frequencies_and_follow_temperature(content, series):
     fm = model(content, series)
     w5 = codes(content, fm, "chickpeas", "winter_wheat")["W5"]
-    assert "of the last 15 years" in w5.short
+    assert "of 15 years" in w5.short and "of the last 15 years" in w5.text
     hit, of = fm.heat_frequency("W5")
     assert of == 15 and 1 <= hit < 15  # the fake's hot 2021 is in there
     hot = model(content, series, temp_f=5)

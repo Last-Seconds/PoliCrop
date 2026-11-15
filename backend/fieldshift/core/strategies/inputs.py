@@ -27,6 +27,10 @@ class FarmerInputs:
     yields: dict[str, float] = field(default_factory=dict)  # crop id -> amount in the crop's yield unit
     rain_pct: float = 0.0
     temp_f: float = 0.0
+    kept: list[list[str]] = field(default_factory=list)  # rotations the farmer marked "keep" (brief 3, F)
+    records: list = field(default_factory=list)  # records.Record: harvest records (brief 3, B)
+    fit: bool = False  # "fit to my field" (brief 3, C)
+    example_records: bool = False  # the records are example data (brief 3, section 10)
     ignored: list[str] = field(default_factory=list)  # what was dropped as malformed
 
     @staticmethod
@@ -101,6 +105,23 @@ class FarmerInputs:
                 else:
                     out.ignored.append(f"yield:{k}")
 
+        kept = raw.get("kept") or []
+        if isinstance(kept, list):
+            offered = {c.id for c in content.offered_crops()}
+            for k in kept[:12]:
+                ids = k.get("crops") if isinstance(k, dict) else k
+                if (isinstance(ids, list) and 2 <= len(ids) <= 8
+                        and all(content.has_crop(str(x)) and content.crop(str(x)).id in offered for x in ids)):
+                    seq = [content.crop(str(x)).id for x in ids]
+                    if seq not in out.kept:
+                        out.kept.append(seq)
+                else:
+                    out.ignored.append("kept")
+        from ..records import parse_records
+        out.records, bad = parse_records(raw.get("records") or [], raw.get("answers") or {}, content)
+        out.ignored += bad
+        out.fit = bool(raw.get("fit", False))
+        out.example_records = bool(raw.get("example_records", False))
         rlo, rhi = s["scenario.rain_pct_range"]["low"], s["scenario.rain_pct_range"]["high"]
         tlo, thi = s["scenario.temp_f_range"]["low"], s["scenario.temp_f_range"]["high"]
         try:
@@ -155,5 +176,8 @@ class FarmerInputs:
             "yields": item(self.yields, bool(self.yields), {}),
             "rain_pct": item(self.rain_pct, bool(self.rain_pct), 0),
             "temp_f": item(self.temp_f, bool(self.temp_f), 0),
+            "kept": item(self.kept, bool(self.kept), []),
+            "records": item(len(self.records), bool(self.records), 0),
+            "fit": item(self.fit, self.fit, False),
             "ignored": self.ignored,
         }

@@ -100,6 +100,7 @@ class Crop:
     harvest_window: SeasonWindow | None = None
     # Agronomic blocks, kept as validated dicts in internal units plus a Basis.
     water_need: dict | None = None
+    water_use: dict | None = None  # sourced seasonal use (brief 3, S1): drives the "may be too dry" caution
     root_zone: dict | None = None
     growing_season: dict | None = None
     regional_yield: dict | None = None
@@ -141,6 +142,7 @@ class Crop:
             "sowing_window": self.sowing_window.to_dict() if self.sowing_window else None,
             "harvest_window": self.harvest_window.to_dict() if self.harvest_window else None,
             "water_need": b(self.water_need),
+            "water_use": b(self.water_use),
             "root_zone": b(self.root_zone),
             "growing_season": b(self.growing_season),
             "regional_yield": b(self.regional_yield),
@@ -397,16 +399,23 @@ def _water_need(raw: Any, where: str) -> dict | None:
         return None
     b = Basis.parse(raw, where)
     m = raw.get("method")
-    if m == "fixed":
-        return {"method": m, "need_mm": units.in_to_mm(_num(raw, "need_in", where, 0, 40)), "basis": b}
     if m == "self_calibrated":
         return {"method": m, "basis": b}
-    if m == "relative_to":
-        if not raw.get("crop"):
-            raise ContentError(f"{where}: relative_to needs a crop")
-        return {"method": m, "crop": str(raw["crop"]),
-                "offset_mm": units.in_to_mm(_num(raw, "offset_in", where, -20, 20)), "basis": b}
+    if m in ("fixed", "relative_to"):
+        raise ContentError(f"{where}: water_need method {m!r} was retired in brief 3 (S1); every crop's need is "
+                           "self_calibrated. Put a sourced figure in water_use instead.")
     raise ContentError(f"{where}: unknown water_need method {m!r}")
+
+
+def _water_use(raw: Any, where: str) -> dict | None:
+    if raw is None:
+        return None
+    if raw.get("method") == "from_yield":  # addendum item 4: seasonal use = expected yield / seed per inch
+        r = raw.get("seed_lb_ac_per_in") or {}
+        lo, hi = _num(r, "low", where, 1, 1000), _num(r, "high", where, 1, 1000)
+        return {"method": "from_yield", "lb_per_in_low": lo, "lb_per_in_high": hi, "basis": Basis.parse(raw, where)}
+    return {"method": "fixed", "use_mm": units.in_to_mm(_num(raw, "use_in", where, 0, 40)),
+            "basis": Basis.parse(raw, where)}
 
 
 def _residue(raw: Any, where: str) -> dict | None:
@@ -499,7 +508,17 @@ def parse_crops(raw: dict, role_ids: set[str], season_ids: set[str] | None = Non
         ry = c.get("regional_yield")
         if ry is not None:
             ry = {"kg_ha": units.lb_ac_to_kg_ha(_num(ry, "value_lb_ac", where, 0, 20000)),
-                  "basis": Basis.parse(ry, f"{where} regional_yield")}
+                  "basis": Basis.parse(ry, f"{where} regional_yield"), "zones": {}}
+            zy = c.get("zone_yields")
+            if zy is not None:  # addendum item 1: typical yields in the Transition and Grain-Fallow zones [S27]
+                ry["zone_basis"] = Basis.parse(zy, f"{where} zone_yields")
+                for z in ("transition", "grain_fallow"):
+                    if zy.get(f"{z}_lb_ac") is not None:
+                        ry["zones"][z] = units.lb_ac_to_kg_ha(_num(zy, f"{z}_lb_ac", where, 0, 20000))
+                ac = zy.get("transition_after_crop")
+                if ac is not None:
+                    ry["after_crop_kg_ha"] = units.lb_ac_to_kg_ha(_num(ac, "value_lb_ac", where, 0, 20000))
+                    ry["after_crop_basis"] = Basis.parse(ac, f"{where} zone_yields.transition_after_crop")
         yu = c.get("yield_unit")
         if yu is not None:
             yu = {"name": str(yu.get("name", "lb")), "lb_per_unit": _num(yu, "lb_per_unit", where, 0.001, 10000)}
@@ -525,6 +544,7 @@ def parse_crops(raw: dict, role_ids: set[str], season_ids: set[str] | None = Non
                 sowing_window=sow,
                 harvest_window=harv,
                 water_need=_water_need(c.get("water_need"), f"{where} water_need"),
+                water_use=_water_use(c.get("water_use"), f"{where} water_use"),
                 root_zone=root,
                 growing_season=gs,
                 regional_yield=ry,
@@ -541,11 +561,7 @@ def parse_crops(raw: dict, role_ids: set[str], season_ids: set[str] | None = Non
     ids = [c.id for c in crops]
     if len(set(ids)) != len(ids):
         raise ContentError("crops: duplicate crop id")
-    by_id = {c.id: c for c in crops}
     for c in crops:
-        wn = c.water_need
-        if wn and wn["method"] == "relative_to" and wn["crop"] not in by_id:
-            raise ContentError(f"crop {c.id}: water_need relative_to unknown crop {wn['crop']!r}")
         if c.generate and c.role not in ("fallow", "cover_crop") and c.sown != "none":
             missing = [k for k in ("water_need", "root_zone", "growing_season") if getattr(c, k) is None]
             if missing:

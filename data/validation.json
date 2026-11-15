@@ -1,0 +1,2219 @@
+{
+ "generated": "2026-11-15",
+ "method": {
+  "areas": "51 x 51 MODIS pixels (about 12 km) around each centre",
+  "years": "2008\u20132025",
+  "pixels": "one crop covers at least 75% of the pixel in that year's crop map; at least 10 pixels",
+  "greenness": "highest MODIS NDVI in Terra composites starting 23 April to 28 July",
+  "index": "brief 3 section 4, at the area's centre, in each pixel's position (after fallow or a harvested crop)",
+  "loo": "leave one year out; reduction in error against the crop's own average"
+ },
+ "areas": [
+  {
+   "id": "west",
+   "name": "Near LaCrosse (dry west)",
+   "lon": -117.88,
+   "lat": 46.812,
+   "mean_crop_year_precip_in": 15.2,
+   "capacity_0_150cm_in": 7.1,
+   "capacity_from_soil_survey": true,
+   "index_notes": [],
+   "all_crops": {
+    "years": 18,
+    "correlation": 0.582,
+    "loo_reduction": 0.16,
+    "loo_reduction_with_temperature": 0.176,
+    "loo_reduction_with_enso": 0.046,
+    "correlation_with_may_june_high": -0.603,
+    "spread_between_neighbouring_pixels": 0.078,
+    "spread_of_area_average_between_years": 0.045
+   },
+   "crops": {
+    "winter_wheat": {
+     "years": 18,
+     "pixels_median": 297,
+     "correlation": 0.516,
+     "loo_reduction": 0.105,
+     "loo_reduction_with_temperature": 0.146,
+     "loo_reduction_with_enso": -0.017,
+     "series": [
+      {
+       "year": 2008,
+       "greenness": 0.7431,
+       "index": 0.0223,
+       "pixels": 177,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2009,
+       "greenness": 0.759,
+       "index": -0.0272,
+       "pixels": 283,
+       "after_fallow_share": 0.915
+      },
+      {
+       "year": 2010,
+       "greenness": 0.8144,
+       "index": 0.394,
+       "pixels": 177,
+       "after_fallow_share": 0.994
+      },
+      {
+       "year": 2011,
+       "greenness": 0.8347,
+       "index": 0.1629,
+       "pixels": 256,
+       "after_fallow_share": 0.957
+      },
+      {
+       "year": 2012,
+       "greenness": 0.8109,
+       "index": 0.4941,
+       "pixels": 164,
+       "after_fallow_share": 0.878
+      },
+      {
+       "year": 2013,
+       "greenness": 0.773,
+       "index": 0.1521,
+       "pixels": 300,
+       "after_fallow_share": 0.887
+      },
+      {
+       "year": 2014,
+       "greenness": 0.7403,
+       "index": 0.0182,
+       "pixels": 235,
+       "after_fallow_share": 0.813
+      },
+      {
+       "year": 2015,
+       "greenness": 0.7368,
+       "index": -0.1847,
+       "pixels": 296,
+       "after_fallow_share": 0.851
+      },
+      {
+       "year": 2016,
+       "greenness": 0.8475,
+       "index": -0.1158,
+       "pixels": 264,
+       "after_fallow_share": 0.97
+      },
+      {
+       "year": 2017,
+       "greenness": 0.8287,
+       "index": -0.1479,
+       "pixels": 393,
+       "after_fallow_share": 0.842
+      },
+      {
+       "year": 2018,
+       "greenness": 0.8201,
+       "index": -0.1944,
+       "pixels": 344,
+       "after_fallow_share": 0.881
+      },
+      {
+       "year": 2019,
+       "greenness": 0.7245,
+       "index": -0.1748,
+       "pixels": 364,
+       "after_fallow_share": 0.887
+      },
+      {
+       "year": 2020,
+       "greenness": 0.7969,
+       "index": 0.2287,
+       "pixels": 300,
+       "after_fallow_share": 0.97
+      },
+      {
+       "year": 2021,
+       "greenness": 0.7555,
+       "index": -0.2655,
+       "pixels": 413,
+       "after_fallow_share": 0.92
+      },
+      {
+       "year": 2022,
+       "greenness": 0.8646,
+       "index": 0.6226,
+       "pixels": 299,
+       "after_fallow_share": 0.92
+      },
+      {
+       "year": 2023,
+       "greenness": 0.7716,
+       "index": -0.2197,
+       "pixels": 461,
+       "after_fallow_share": 0.805
+      },
+      {
+       "year": 2024,
+       "greenness": 0.7858,
+       "index": -0.0393,
+       "pixels": 264,
+       "after_fallow_share": 1.0
+      },
+      {
+       "year": 2025,
+       "greenness": 0.7562,
+       "index": -0.2337,
+       "pixels": 373,
+       "after_fallow_share": 0.66
+      }
+     ]
+    },
+    "spring_wheat": {
+     "years": 18,
+     "pixels_median": 37,
+     "correlation": 0.796,
+     "loo_reduction": 0.356,
+     "loo_reduction_with_temperature": 0.284,
+     "loo_reduction_with_enso": 0.501,
+     "series": [
+      {
+       "year": 2008,
+       "greenness": 0.6342,
+       "index": 0.0273,
+       "pixels": 68,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2009,
+       "greenness": 0.6125,
+       "index": 0.032,
+       "pixels": 26,
+       "after_fallow_share": 0.192
+      },
+      {
+       "year": 2010,
+       "greenness": 0.7947,
+       "index": 0.2488,
+       "pixels": 47,
+       "after_fallow_share": 0.34
+      },
+      {
+       "year": 2011,
+       "greenness": 0.6515,
+       "index": 0.2594,
+       "pixels": 43,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2012,
+       "greenness": 0.7442,
+       "index": 0.3778,
+       "pixels": 16,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2013,
+       "greenness": 0.7158,
+       "index": 0.1568,
+       "pixels": 19,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2014,
+       "greenness": 0.6101,
+       "index": 0.007,
+       "pixels": 52,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2015,
+       "greenness": 0.6879,
+       "index": -0.0547,
+       "pixels": 57,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2016,
+       "greenness": 0.7478,
+       "index": -0.0243,
+       "pixels": 25,
+       "after_fallow_share": 0.08
+      },
+      {
+       "year": 2017,
+       "greenness": 0.6687,
+       "index": -0.0887,
+       "pixels": 15,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2018,
+       "greenness": 0.6819,
+       "index": -0.1182,
+       "pixels": 25,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2019,
+       "greenness": 0.6427,
+       "index": -0.2722,
+       "pixels": 40,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2020,
+       "greenness": 0.7373,
+       "index": 0.1624,
+       "pixels": 39,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2021,
+       "greenness": 0.4423,
+       "index": -0.5129,
+       "pixels": 32,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2022,
+       "greenness": 0.8411,
+       "index": 0.4919,
+       "pixels": 50,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2023,
+       "greenness": 0.5121,
+       "index": -0.1574,
+       "pixels": 36,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2024,
+       "greenness": 0.7051,
+       "index": -0.0025,
+       "pixels": 83,
+       "after_fallow_share": 0.048
+      },
+      {
+       "year": 2025,
+       "greenness": 0.5862,
+       "index": -0.1335,
+       "pixels": 25,
+       "after_fallow_share": 0.0
+      }
+     ]
+    },
+    "spring_canola": {
+     "years": 3,
+     "pixels_median": 13,
+     "correlation": null,
+     "loo_reduction": null,
+     "loo_reduction_with_temperature": null,
+     "loo_reduction_with_enso": null,
+     "series": [
+      {
+       "year": 2012,
+       "greenness": 0.8496,
+       "index": 0.3595,
+       "pixels": 12,
+       "after_fallow_share": 0.417
+      },
+      {
+       "year": 2020,
+       "greenness": 0.7464,
+       "index": 0.314,
+       "pixels": 13,
+       "after_fallow_share": 1.0
+      },
+      {
+       "year": 2025,
+       "greenness": 0.6205,
+       "index": -0.1335,
+       "pixels": 52,
+       "after_fallow_share": 0.0
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "west_central",
+   "name": "Near Endicott",
+   "lon": -117.64,
+   "lat": 46.96,
+   "mean_crop_year_precip_in": 17.7,
+   "capacity_0_150cm_in": 10.8,
+   "capacity_from_soil_survey": true,
+   "index_notes": [],
+   "all_crops": {
+    "years": 18,
+    "correlation": 0.773,
+    "loo_reduction": 0.329,
+    "loo_reduction_with_temperature": 0.258,
+    "loo_reduction_with_enso": 0.389,
+    "correlation_with_may_june_high": -0.719,
+    "spread_between_neighbouring_pixels": 0.083,
+    "spread_of_area_average_between_years": 0.052
+   },
+   "crops": {
+    "winter_wheat": {
+     "years": 18,
+     "pixels_median": 510,
+     "correlation": 0.57,
+     "loo_reduction": 0.156,
+     "loo_reduction_with_temperature": 0.119,
+     "loo_reduction_with_enso": 0.034,
+     "series": [
+      {
+       "year": 2008,
+       "greenness": 0.7979,
+       "index": 0.0232,
+       "pixels": 433,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2009,
+       "greenness": 0.7847,
+       "index": 0.0005,
+       "pixels": 516,
+       "after_fallow_share": 0.779
+      },
+      {
+       "year": 2010,
+       "greenness": 0.8466,
+       "index": 0.3654,
+       "pixels": 505,
+       "after_fallow_share": 0.584
+      },
+      {
+       "year": 2011,
+       "greenness": 0.8696,
+       "index": 0.1091,
+       "pixels": 497,
+       "after_fallow_share": 0.909
+      },
+      {
+       "year": 2012,
+       "greenness": 0.8629,
+       "index": 0.34,
+       "pixels": 464,
+       "after_fallow_share": 0.849
+      },
+      {
+       "year": 2013,
+       "greenness": 0.8169,
+       "index": 0.1728,
+       "pixels": 452,
+       "after_fallow_share": 0.739
+      },
+      {
+       "year": 2014,
+       "greenness": 0.8191,
+       "index": 0.0004,
+       "pixels": 409,
+       "after_fallow_share": 0.836
+      },
+      {
+       "year": 2015,
+       "greenness": 0.8215,
+       "index": -0.1364,
+       "pixels": 588,
+       "after_fallow_share": 0.895
+      },
+      {
+       "year": 2016,
+       "greenness": 0.8576,
+       "index": -0.0485,
+       "pixels": 482,
+       "after_fallow_share": 0.888
+      },
+      {
+       "year": 2017,
+       "greenness": 0.8533,
+       "index": -0.0556,
+       "pixels": 550,
+       "after_fallow_share": 0.975
+      },
+      {
+       "year": 2018,
+       "greenness": 0.836,
+       "index": 0.0727,
+       "pixels": 518,
+       "after_fallow_share": 0.699
+      },
+      {
+       "year": 2019,
+       "greenness": 0.7402,
+       "index": -0.078,
+       "pixels": 458,
+       "after_fallow_share": 0.836
+      },
+      {
+       "year": 2020,
+       "greenness": 0.8551,
+       "index": 0.1764,
+       "pixels": 525,
+       "after_fallow_share": 0.933
+      },
+      {
+       "year": 2021,
+       "greenness": 0.7841,
+       "index": -0.2517,
+       "pixels": 649,
+       "after_fallow_share": 0.786
+      },
+      {
+       "year": 2022,
+       "greenness": 0.8815,
+       "index": 0.3499,
+       "pixels": 436,
+       "after_fallow_share": 0.727
+      },
+      {
+       "year": 2023,
+       "greenness": 0.801,
+       "index": -0.2067,
+       "pixels": 564,
+       "after_fallow_share": 0.748
+      },
+      {
+       "year": 2024,
+       "greenness": 0.8628,
+       "index": -0.0381,
+       "pixels": 583,
+       "after_fallow_share": 0.811
+      },
+      {
+       "year": 2025,
+       "greenness": 0.8141,
+       "index": -0.1772,
+       "pixels": 525,
+       "after_fallow_share": 0.792
+      }
+     ]
+    },
+    "spring_wheat": {
+     "years": 18,
+     "pixels_median": 292,
+     "correlation": 0.782,
+     "loo_reduction": 0.321,
+     "loo_reduction_with_temperature": 0.252,
+     "loo_reduction_with_enso": 0.425,
+     "series": [
+      {
+       "year": 2008,
+       "greenness": 0.7442,
+       "index": 0.0199,
+       "pixels": 177,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2009,
+       "greenness": 0.6667,
+       "index": -0.0028,
+       "pixels": 363,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2010,
+       "greenness": 0.8108,
+       "index": 0.2258,
+       "pixels": 210,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2011,
+       "greenness": 0.7992,
+       "index": 0.3826,
+       "pixels": 272,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2012,
+       "greenness": 0.8068,
+       "index": 0.3918,
+       "pixels": 317,
+       "after_fallow_share": 0.038
+      },
+      {
+       "year": 2013,
+       "greenness": 0.7397,
+       "index": 0.1966,
+       "pixels": 398,
+       "after_fallow_share": 0.038
+      },
+      {
+       "year": 2014,
+       "greenness": 0.732,
+       "index": -0.0382,
+       "pixels": 301,
+       "after_fallow_share": 0.003
+      },
+      {
+       "year": 2015,
+       "greenness": 0.753,
+       "index": -0.1108,
+       "pixels": 298,
+       "after_fallow_share": 0.01
+      },
+      {
+       "year": 2016,
+       "greenness": 0.7544,
+       "index": 0.1647,
+       "pixels": 287,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2017,
+       "greenness": 0.7269,
+       "index": 0.1586,
+       "pixels": 245,
+       "after_fallow_share": 0.02
+      },
+      {
+       "year": 2018,
+       "greenness": 0.7361,
+       "index": 0.2244,
+       "pixels": 358,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2019,
+       "greenness": 0.6935,
+       "index": -0.2196,
+       "pixels": 403,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2020,
+       "greenness": 0.8023,
+       "index": 0.1167,
+       "pixels": 246,
+       "after_fallow_share": 0.033
+      },
+      {
+       "year": 2021,
+       "greenness": 0.4907,
+       "index": -0.387,
+       "pixels": 363,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2022,
+       "greenness": 0.8563,
+       "index": 0.2792,
+       "pixels": 336,
+       "after_fallow_share": 0.003
+      },
+      {
+       "year": 2023,
+       "greenness": 0.5911,
+       "index": -0.2772,
+       "pixels": 247,
+       "after_fallow_share": 0.049
+      },
+      {
+       "year": 2024,
+       "greenness": 0.7719,
+       "index": -0.1055,
+       "pixels": 216,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2025,
+       "greenness": 0.5862,
+       "index": -0.0653,
+       "pixels": 197,
+       "after_fallow_share": 0.051
+      }
+     ]
+    },
+    "spring_barley": {
+     "years": 9,
+     "pixels_median": 23,
+     "correlation": 0.683,
+     "loo_reduction": 0.151,
+     "loo_reduction_with_temperature": 0.206,
+     "loo_reduction_with_enso": 0.058,
+     "series": [
+      {
+       "year": 2008,
+       "greenness": 0.7994,
+       "index": 0.0199,
+       "pixels": 43,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2012,
+       "greenness": 0.8051,
+       "index": 0.3992,
+       "pixels": 11,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2013,
+       "greenness": 0.8238,
+       "index": 0.2011,
+       "pixels": 23,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2016,
+       "greenness": 0.8139,
+       "index": 0.1647,
+       "pixels": 19,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2020,
+       "greenness": 0.8626,
+       "index": 0.1128,
+       "pixels": 20,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2022,
+       "greenness": 0.8504,
+       "index": 0.2794,
+       "pixels": 48,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2023,
+       "greenness": 0.5916,
+       "index": -0.2838,
+       "pixels": 11,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2024,
+       "greenness": 0.8059,
+       "index": -0.1055,
+       "pixels": 57,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2025,
+       "greenness": 0.5724,
+       "index": -0.0607,
+       "pixels": 125,
+       "after_fallow_share": 0.0
+      }
+     ]
+    },
+    "spring_peas": {
+     "years": 3,
+     "pixels_median": 20,
+     "correlation": null,
+     "loo_reduction": null,
+     "loo_reduction_with_temperature": null,
+     "loo_reduction_with_enso": null,
+     "series": [
+      {
+       "year": 2015,
+       "greenness": 0.792,
+       "index": -0.111,
+       "pixels": 26,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2021,
+       "greenness": 0.5332,
+       "index": -0.387,
+       "pixels": 20,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2022,
+       "greenness": 0.8116,
+       "index": 0.2794,
+       "pixels": 15,
+       "after_fallow_share": 0.0
+      }
+     ]
+    },
+    "spring_canola": {
+     "years": 1,
+     "pixels_median": 37,
+     "correlation": null,
+     "loo_reduction": null,
+     "loo_reduction_with_temperature": null,
+     "loo_reduction_with_enso": null,
+     "series": [
+      {
+       "year": 2022,
+       "greenness": 0.8189,
+       "index": 0.2794,
+       "pixels": 37,
+       "after_fallow_share": 0.0
+      }
+     ]
+    },
+    "chickpeas": {
+     "years": 1,
+     "pixels_median": 22,
+     "correlation": null,
+     "loo_reduction": null,
+     "loo_reduction_with_temperature": null,
+     "loo_reduction_with_enso": null,
+     "series": [
+      {
+       "year": 2023,
+       "greenness": 0.584,
+       "index": -0.2838,
+       "pixels": 22,
+       "after_fallow_share": 0.0
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "central",
+   "name": "West of Colfax",
+   "lon": -117.42,
+   "lat": 46.93,
+   "mean_crop_year_precip_in": 18.4,
+   "capacity_0_150cm_in": 9.5,
+   "capacity_from_soil_survey": true,
+   "index_notes": [],
+   "all_crops": {
+    "years": 18,
+    "correlation": 0.774,
+    "loo_reduction": 0.302,
+    "loo_reduction_with_temperature": 0.239,
+    "loo_reduction_with_enso": 0.396,
+    "correlation_with_may_june_high": -0.713,
+    "spread_between_neighbouring_pixels": 0.074,
+    "spread_of_area_average_between_years": 0.05
+   },
+   "crops": {
+    "winter_wheat": {
+     "years": 18,
+     "pixels_median": 448,
+     "correlation": 0.69,
+     "loo_reduction": 0.209,
+     "loo_reduction_with_temperature": 0.178,
+     "loo_reduction_with_enso": 0.206,
+     "series": [
+      {
+       "year": 2008,
+       "greenness": 0.8241,
+       "index": -0.0304,
+       "pixels": 418,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2009,
+       "greenness": 0.8132,
+       "index": 0.0355,
+       "pixels": 467,
+       "after_fallow_share": 0.39
+      },
+      {
+       "year": 2010,
+       "greenness": 0.8763,
+       "index": 0.1294,
+       "pixels": 447,
+       "after_fallow_share": 0.385
+      },
+      {
+       "year": 2011,
+       "greenness": 0.8813,
+       "index": 0.1642,
+       "pixels": 392,
+       "after_fallow_share": 0.658
+      },
+      {
+       "year": 2012,
+       "greenness": 0.8591,
+       "index": 0.2591,
+       "pixels": 418,
+       "after_fallow_share": 0.519
+      },
+      {
+       "year": 2013,
+       "greenness": 0.8428,
+       "index": 0.0564,
+       "pixels": 446,
+       "after_fallow_share": 0.39
+      },
+      {
+       "year": 2014,
+       "greenness": 0.8032,
+       "index": 0.0142,
+       "pixels": 405,
+       "after_fallow_share": 0.563
+      },
+      {
+       "year": 2015,
+       "greenness": 0.8299,
+       "index": -0.1053,
+       "pixels": 371,
+       "after_fallow_share": 0.588
+      },
+      {
+       "year": 2016,
+       "greenness": 0.8531,
+       "index": -0.0773,
+       "pixels": 508,
+       "after_fallow_share": 0.36
+      },
+      {
+       "year": 2017,
+       "greenness": 0.8368,
+       "index": 0.0293,
+       "pixels": 483,
+       "after_fallow_share": 0.549
+      },
+      {
+       "year": 2018,
+       "greenness": 0.8516,
+       "index": 0.0931,
+       "pixels": 438,
+       "after_fallow_share": 0.445
+      },
+      {
+       "year": 2019,
+       "greenness": 0.7636,
+       "index": -0.1253,
+       "pixels": 469,
+       "after_fallow_share": 0.273
+      },
+      {
+       "year": 2020,
+       "greenness": 0.8532,
+       "index": 0.1893,
+       "pixels": 469,
+       "after_fallow_share": 0.426
+      },
+      {
+       "year": 2021,
+       "greenness": 0.7437,
+       "index": -0.2742,
+       "pixels": 555,
+       "after_fallow_share": 0.368
+      },
+      {
+       "year": 2022,
+       "greenness": 0.8696,
+       "index": 0.4477,
+       "pixels": 511,
+       "after_fallow_share": 0.143
+      },
+      {
+       "year": 2023,
+       "greenness": 0.7606,
+       "index": -0.2358,
+       "pixels": 415,
+       "after_fallow_share": 0.388
+      },
+      {
+       "year": 2024,
+       "greenness": 0.8824,
+       "index": -0.0593,
+       "pixels": 592,
+       "after_fallow_share": 0.448
+      },
+      {
+       "year": 2025,
+       "greenness": 0.8335,
+       "index": -0.1874,
+       "pixels": 449,
+       "after_fallow_share": 0.474
+      }
+     ]
+    },
+    "spring_wheat": {
+     "years": 18,
+     "pixels_median": 218,
+     "correlation": 0.791,
+     "loo_reduction": 0.334,
+     "loo_reduction_with_temperature": 0.237,
+     "loo_reduction_with_enso": 0.432,
+     "series": [
+      {
+       "year": 2008,
+       "greenness": 0.7767,
+       "index": -0.0165,
+       "pixels": 44,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2009,
+       "greenness": 0.7301,
+       "index": 0.0909,
+       "pixels": 195,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2010,
+       "greenness": 0.8256,
+       "index": -0.0069,
+       "pixels": 187,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2011,
+       "greenness": 0.809,
+       "index": 0.2663,
+       "pixels": 251,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2012,
+       "greenness": 0.8125,
+       "index": 0.2149,
+       "pixels": 93,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2013,
+       "greenness": 0.7728,
+       "index": 0.0089,
+       "pixels": 174,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2014,
+       "greenness": 0.741,
+       "index": -0.0012,
+       "pixels": 242,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2015,
+       "greenness": 0.7914,
+       "index": 0.0012,
+       "pixels": 238,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2016,
+       "greenness": 0.7841,
+       "index": -0.0436,
+       "pixels": 158,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2017,
+       "greenness": 0.7662,
+       "index": 0.0785,
+       "pixels": 196,
+       "after_fallow_share": 0.01
+      },
+      {
+       "year": 2018,
+       "greenness": 0.7752,
+       "index": 0.1214,
+       "pixels": 226,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2019,
+       "greenness": 0.6767,
+       "index": -0.1904,
+       "pixels": 236,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2020,
+       "greenness": 0.8226,
+       "index": 0.2164,
+       "pixels": 254,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2021,
+       "greenness": 0.5696,
+       "index": -0.2868,
+       "pixels": 259,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2022,
+       "greenness": 0.8496,
+       "index": 0.3456,
+       "pixels": 324,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2023,
+       "greenness": 0.6692,
+       "index": -0.2332,
+       "pixels": 214,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2024,
+       "greenness": 0.8084,
+       "index": -0.09,
+       "pixels": 223,
+       "after_fallow_share": 0.018
+      },
+      {
+       "year": 2025,
+       "greenness": 0.6952,
+       "index": -0.1002,
+       "pixels": 175,
+       "after_fallow_share": 0.0
+      }
+     ]
+    },
+    "spring_barley": {
+     "years": 15,
+     "pixels_median": 35,
+     "correlation": 0.605,
+     "loo_reduction": 0.163,
+     "loo_reduction_with_temperature": 0.038,
+     "loo_reduction_with_enso": 0.081,
+     "series": [
+      {
+       "year": 2008,
+       "greenness": 0.7967,
+       "index": -0.0165,
+       "pixels": 276,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2009,
+       "greenness": 0.7906,
+       "index": 0.0909,
+       "pixels": 36,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2010,
+       "greenness": 0.853,
+       "index": -0.0069,
+       "pixels": 11,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2011,
+       "greenness": 0.7933,
+       "index": 0.2663,
+       "pixels": 69,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2012,
+       "greenness": 0.8182,
+       "index": 0.2149,
+       "pixels": 116,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2013,
+       "greenness": 0.8271,
+       "index": 0.0089,
+       "pixels": 90,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2014,
+       "greenness": 0.7759,
+       "index": -0.0012,
+       "pixels": 64,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2015,
+       "greenness": 0.8118,
+       "index": 0.0012,
+       "pixels": 38,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2016,
+       "greenness": 0.811,
+       "index": -0.0436,
+       "pixels": 35,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2017,
+       "greenness": 0.698,
+       "index": 0.0795,
+       "pixels": 27,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2018,
+       "greenness": 0.8323,
+       "index": 0.1214,
+       "pixels": 18,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2019,
+       "greenness": 0.7374,
+       "index": -0.1904,
+       "pixels": 33,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2020,
+       "greenness": 0.8633,
+       "index": 0.2164,
+       "pixels": 12,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2022,
+       "greenness": 0.8875,
+       "index": 0.3456,
+       "pixels": 12,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2023,
+       "greenness": 0.7164,
+       "index": -0.2332,
+       "pixels": 12,
+       "after_fallow_share": 0.0
+      }
+     ]
+    },
+    "spring_peas": {
+     "years": 9,
+     "pixels_median": 18,
+     "correlation": 0.46,
+     "loo_reduction": -0.237,
+     "loo_reduction_with_temperature": -0.321,
+     "loo_reduction_with_enso": -0.183,
+     "series": [
+      {
+       "year": 2008,
+       "greenness": 0.7599,
+       "index": -0.0165,
+       "pixels": 10,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2009,
+       "greenness": 0.7586,
+       "index": 0.0909,
+       "pixels": 28,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2010,
+       "greenness": 0.781,
+       "index": -0.0069,
+       "pixels": 17,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2011,
+       "greenness": 0.7675,
+       "index": 0.2663,
+       "pixels": 15,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2013,
+       "greenness": 0.7348,
+       "index": 0.0089,
+       "pixels": 18,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2014,
+       "greenness": 0.7742,
+       "index": -0.0012,
+       "pixels": 21,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2015,
+       "greenness": 0.7654,
+       "index": 0.0012,
+       "pixels": 29,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2016,
+       "greenness": 0.7703,
+       "index": -0.0436,
+       "pixels": 13,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2020,
+       "greenness": 0.8322,
+       "index": 0.2164,
+       "pixels": 18,
+       "after_fallow_share": 0.0
+      }
+     ]
+    },
+    "lentils": {
+     "years": 8,
+     "pixels_median": 13,
+     "correlation": 0.852,
+     "loo_reduction": 0.398,
+     "loo_reduction_with_temperature": 0.442,
+     "loo_reduction_with_enso": 0.557,
+     "series": [
+      {
+       "year": 2008,
+       "greenness": 0.7626,
+       "index": -0.0165,
+       "pixels": 15,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2012,
+       "greenness": 0.814,
+       "index": 0.2149,
+       "pixels": 12,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2017,
+       "greenness": 0.7711,
+       "index": 0.0795,
+       "pixels": 12,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2018,
+       "greenness": 0.8231,
+       "index": 0.1214,
+       "pixels": 22,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2019,
+       "greenness": 0.6365,
+       "index": -0.1904,
+       "pixels": 14,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2021,
+       "greenness": 0.6962,
+       "index": -0.2868,
+       "pixels": 12,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2023,
+       "greenness": 0.727,
+       "index": -0.2332,
+       "pixels": 10,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2025,
+       "greenness": 0.7271,
+       "index": -0.1002,
+       "pixels": 59,
+       "after_fallow_share": 0.0
+      }
+     ]
+    },
+    "spring_canola": {
+     "years": 8,
+     "pixels_median": 36,
+     "correlation": 0.828,
+     "loo_reduction": 0.349,
+     "loo_reduction_with_temperature": 0.363,
+     "loo_reduction_with_enso": -0.124,
+     "series": [
+      {
+       "year": 2008,
+       "greenness": 0.7784,
+       "index": -0.0165,
+       "pixels": 18,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2019,
+       "greenness": 0.6884,
+       "index": -0.1904,
+       "pixels": 20,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2020,
+       "greenness": 0.8235,
+       "index": 0.2164,
+       "pixels": 12,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2021,
+       "greenness": 0.631,
+       "index": -0.2868,
+       "pixels": 49,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2022,
+       "greenness": 0.8195,
+       "index": 0.3456,
+       "pixels": 35,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2023,
+       "greenness": 0.7001,
+       "index": -0.2332,
+       "pixels": 69,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2024,
+       "greenness": 0.8084,
+       "index": -0.0907,
+       "pixels": 50,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2025,
+       "greenness": 0.6832,
+       "index": -0.1002,
+       "pixels": 37,
+       "after_fallow_share": 0.0
+      }
+     ]
+    },
+    "chickpeas": {
+     "years": 7,
+     "pixels_median": 57,
+     "correlation": 0.743,
+     "loo_reduction": 0.207,
+     "loo_reduction_with_temperature": 0.086,
+     "loo_reduction_with_enso": -0.226,
+     "series": [
+      {
+       "year": 2019,
+       "greenness": 0.6598,
+       "index": -0.1904,
+       "pixels": 39,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2020,
+       "greenness": 0.7257,
+       "index": 0.2164,
+       "pixels": 70,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2021,
+       "greenness": 0.4942,
+       "index": -0.2868,
+       "pixels": 25,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2022,
+       "greenness": 0.73,
+       "index": 0.3456,
+       "pixels": 50,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2023,
+       "greenness": 0.6719,
+       "index": -0.2332,
+       "pixels": 62,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2024,
+       "greenness": 0.6347,
+       "index": -0.0907,
+       "pixels": 57,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2025,
+       "greenness": 0.5958,
+       "index": -0.1002,
+       "pixels": 147,
+       "after_fallow_share": 0.0
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "east",
+   "name": "Near Pullman (wet east)",
+   "lon": -117.238,
+   "lat": 46.847,
+   "mean_crop_year_precip_in": 22.4,
+   "capacity_0_150cm_in": 11.2,
+   "capacity_from_soil_survey": true,
+   "index_notes": [],
+   "all_crops": {
+    "years": 18,
+    "correlation": 0.726,
+    "loo_reduction": 0.218,
+    "loo_reduction_with_temperature": 0.119,
+    "loo_reduction_with_enso": 0.346,
+    "correlation_with_may_june_high": -0.636,
+    "spread_between_neighbouring_pixels": 0.066,
+    "spread_of_area_average_between_years": 0.051
+   },
+   "crops": {
+    "winter_wheat": {
+     "years": 18,
+     "pixels_median": 556,
+     "correlation": 0.634,
+     "loo_reduction": 0.143,
+     "loo_reduction_with_temperature": 0.076,
+     "loo_reduction_with_enso": 0.342,
+     "series": [
+      {
+       "year": 2008,
+       "greenness": 0.8564,
+       "index": -0.0111,
+       "pixels": 538,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2009,
+       "greenness": 0.8468,
+       "index": 0.0412,
+       "pixels": 463,
+       "after_fallow_share": 0.041
+      },
+      {
+       "year": 2010,
+       "greenness": 0.9088,
+       "index": 0.0282,
+       "pixels": 653,
+       "after_fallow_share": 0.081
+      },
+      {
+       "year": 2011,
+       "greenness": 0.8809,
+       "index": 0.1832,
+       "pixels": 543,
+       "after_fallow_share": 0.092
+      },
+      {
+       "year": 2012,
+       "greenness": 0.8771,
+       "index": 0.1861,
+       "pixels": 286,
+       "after_fallow_share": 0.108
+      },
+      {
+       "year": 2013,
+       "greenness": 0.8828,
+       "index": 0.0675,
+       "pixels": 721,
+       "after_fallow_share": 0.083
+      },
+      {
+       "year": 2014,
+       "greenness": 0.8467,
+       "index": -0.0121,
+       "pixels": 472,
+       "after_fallow_share": 0.091
+      },
+      {
+       "year": 2015,
+       "greenness": 0.8781,
+       "index": -0.0647,
+       "pixels": 310,
+       "after_fallow_share": 0.065
+      },
+      {
+       "year": 2016,
+       "greenness": 0.8839,
+       "index": -0.0884,
+       "pixels": 765,
+       "after_fallow_share": 0.042
+      },
+      {
+       "year": 2017,
+       "greenness": 0.8712,
+       "index": 0.0272,
+       "pixels": 458,
+       "after_fallow_share": 0.092
+      },
+      {
+       "year": 2018,
+       "greenness": 0.8877,
+       "index": 0.1136,
+       "pixels": 481,
+       "after_fallow_share": 0.05
+      },
+      {
+       "year": 2019,
+       "greenness": 0.8312,
+       "index": -0.1146,
+       "pixels": 671,
+       "after_fallow_share": 0.048
+      },
+      {
+       "year": 2020,
+       "greenness": 0.8908,
+       "index": 0.1093,
+       "pixels": 633,
+       "after_fallow_share": 0.055
+      },
+      {
+       "year": 2021,
+       "greenness": 0.7814,
+       "index": -0.2864,
+       "pixels": 450,
+       "after_fallow_share": 0.102
+      },
+      {
+       "year": 2022,
+       "greenness": 0.8931,
+       "index": 0.3779,
+       "pixels": 779,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2023,
+       "greenness": 0.7896,
+       "index": -0.238,
+       "pixels": 630,
+       "after_fallow_share": 0.048
+      },
+      {
+       "year": 2024,
+       "greenness": 0.8972,
+       "index": -0.1042,
+       "pixels": 621,
+       "after_fallow_share": 0.035
+      },
+      {
+       "year": 2025,
+       "greenness": 0.8722,
+       "index": -0.1955,
+       "pixels": 570,
+       "after_fallow_share": 0.047
+      }
+     ]
+    },
+    "spring_wheat": {
+     "years": 18,
+     "pixels_median": 240,
+     "correlation": 0.746,
+     "loo_reduction": 0.291,
+     "loo_reduction_with_temperature": 0.194,
+     "loo_reduction_with_enso": 0.422,
+     "series": [
+      {
+       "year": 2008,
+       "greenness": 0.8382,
+       "index": -0.0028,
+       "pixels": 242,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2009,
+       "greenness": 0.8013,
+       "index": 0.0579,
+       "pixels": 428,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2010,
+       "greenness": 0.8784,
+       "index": -0.0599,
+       "pixels": 227,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2011,
+       "greenness": 0.8491,
+       "index": 0.2264,
+       "pixels": 423,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2012,
+       "greenness": 0.8403,
+       "index": 0.1256,
+       "pixels": 255,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2013,
+       "greenness": 0.8239,
+       "index": 0.0249,
+       "pixels": 201,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2014,
+       "greenness": 0.7951,
+       "index": -0.0193,
+       "pixels": 451,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2015,
+       "greenness": 0.8383,
+       "index": 0.0028,
+       "pixels": 400,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2016,
+       "greenness": 0.843,
+       "index": -0.0848,
+       "pixels": 152,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2017,
+       "greenness": 0.7668,
+       "index": 0.0421,
+       "pixels": 399,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2018,
+       "greenness": 0.8276,
+       "index": 0.1093,
+       "pixels": 218,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2019,
+       "greenness": 0.7172,
+       "index": -0.1544,
+       "pixels": 197,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2020,
+       "greenness": 0.8805,
+       "index": 0.1622,
+       "pixels": 348,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2021,
+       "greenness": 0.655,
+       "index": -0.2692,
+       "pixels": 404,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2022,
+       "greenness": 0.8704,
+       "index": 0.2848,
+       "pixels": 239,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2023,
+       "greenness": 0.69,
+       "index": -0.218,
+       "pixels": 202,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2024,
+       "greenness": 0.8386,
+       "index": -0.1015,
+       "pixels": 233,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2025,
+       "greenness": 0.7205,
+       "index": -0.1468,
+       "pixels": 192,
+       "after_fallow_share": 0.0
+      }
+     ]
+    },
+    "spring_barley": {
+     "years": 17,
+     "pixels_median": 61,
+     "correlation": 0.546,
+     "loo_reduction": 0.105,
+     "loo_reduction_with_temperature": -0.083,
+     "loo_reduction_with_enso": 0.222,
+     "series": [
+      {
+       "year": 2008,
+       "greenness": 0.8379,
+       "index": -0.0028,
+       "pixels": 203,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2009,
+       "greenness": 0.8071,
+       "index": 0.0579,
+       "pixels": 20,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2010,
+       "greenness": 0.9182,
+       "index": -0.0599,
+       "pixels": 11,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2011,
+       "greenness": 0.8456,
+       "index": 0.2264,
+       "pixels": 98,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2012,
+       "greenness": 0.8473,
+       "index": 0.1256,
+       "pixels": 134,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2013,
+       "greenness": 0.8473,
+       "index": 0.0249,
+       "pixels": 84,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2014,
+       "greenness": 0.8128,
+       "index": -0.0193,
+       "pixels": 110,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2015,
+       "greenness": 0.878,
+       "index": 0.0028,
+       "pixels": 60,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2016,
+       "greenness": 0.8627,
+       "index": -0.0848,
+       "pixels": 61,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2017,
+       "greenness": 0.7587,
+       "index": 0.0421,
+       "pixels": 43,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2018,
+       "greenness": 0.8358,
+       "index": 0.1093,
+       "pixels": 15,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2019,
+       "greenness": 0.7509,
+       "index": -0.1544,
+       "pixels": 62,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2020,
+       "greenness": 0.8956,
+       "index": 0.1622,
+       "pixels": 93,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2021,
+       "greenness": 0.7028,
+       "index": -0.2692,
+       "pixels": 10,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2023,
+       "greenness": 0.7684,
+       "index": -0.218,
+       "pixels": 53,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2024,
+       "greenness": 0.8558,
+       "index": -0.1015,
+       "pixels": 74,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2025,
+       "greenness": 0.7978,
+       "index": -0.1468,
+       "pixels": 22,
+       "after_fallow_share": 0.0
+      }
+     ]
+    },
+    "spring_peas": {
+     "years": 8,
+     "pixels_median": 20,
+     "correlation": 0.183,
+     "loo_reduction": -0.137,
+     "loo_reduction_with_temperature": -0.361,
+     "loo_reduction_with_enso": -0.03,
+     "series": [
+      {
+       "year": 2008,
+       "greenness": 0.7799,
+       "index": -0.0028,
+       "pixels": 10,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2009,
+       "greenness": 0.7661,
+       "index": 0.0579,
+       "pixels": 32,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2010,
+       "greenness": 0.8617,
+       "index": -0.0599,
+       "pixels": 19,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2011,
+       "greenness": 0.7918,
+       "index": 0.2264,
+       "pixels": 18,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2015,
+       "greenness": 0.7762,
+       "index": 0.0028,
+       "pixels": 23,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2016,
+       "greenness": 0.7999,
+       "index": -0.0848,
+       "pixels": 22,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2019,
+       "greenness": 0.7482,
+       "index": -0.1544,
+       "pixels": 11,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2020,
+       "greenness": 0.8277,
+       "index": 0.1622,
+       "pixels": 23,
+       "after_fallow_share": 0.0
+      }
+     ]
+    },
+    "lentils": {
+     "years": 9,
+     "pixels_median": 27,
+     "correlation": -0.436,
+     "loo_reduction": -0.182,
+     "loo_reduction_with_temperature": -0.256,
+     "loo_reduction_with_enso": -0.73,
+     "series": [
+      {
+       "year": 2009,
+       "greenness": 0.7855,
+       "index": 0.0579,
+       "pixels": 43,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2010,
+       "greenness": 0.8736,
+       "index": -0.0599,
+       "pixels": 25,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2011,
+       "greenness": 0.7756,
+       "index": 0.2264,
+       "pixels": 33,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2013,
+       "greenness": 0.8412,
+       "index": 0.0249,
+       "pixels": 17,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2015,
+       "greenness": 0.7638,
+       "index": 0.0028,
+       "pixels": 18,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2016,
+       "greenness": 0.7945,
+       "index": -0.0848,
+       "pixels": 27,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2018,
+       "greenness": 0.8493,
+       "index": 0.1093,
+       "pixels": 17,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2022,
+       "greenness": 0.6454,
+       "index": 0.2848,
+       "pixels": 38,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2025,
+       "greenness": 0.7428,
+       "index": -0.1468,
+       "pixels": 95,
+       "after_fallow_share": 0.0
+      }
+     ]
+    },
+    "spring_canola": {
+     "years": 10,
+     "pixels_median": 112,
+     "correlation": 0.837,
+     "loo_reduction": 0.411,
+     "loo_reduction_with_temperature": 0.344,
+     "loo_reduction_with_enso": 0.382,
+     "series": [
+      {
+       "year": 2016,
+       "greenness": 0.8039,
+       "index": -0.0848,
+       "pixels": 50,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2017,
+       "greenness": 0.7951,
+       "index": 0.0421,
+       "pixels": 33,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2018,
+       "greenness": 0.8109,
+       "index": 0.1093,
+       "pixels": 94,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2019,
+       "greenness": 0.7447,
+       "index": -0.1544,
+       "pixels": 169,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2020,
+       "greenness": 0.8174,
+       "index": 0.1622,
+       "pixels": 127,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2021,
+       "greenness": 0.6812,
+       "index": -0.2692,
+       "pixels": 295,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2022,
+       "greenness": 0.8379,
+       "index": 0.2848,
+       "pixels": 247,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2023,
+       "greenness": 0.7121,
+       "index": -0.218,
+       "pixels": 300,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2024,
+       "greenness": 0.8058,
+       "index": -0.1015,
+       "pixels": 91,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2025,
+       "greenness": 0.6873,
+       "index": -0.1468,
+       "pixels": 97,
+       "after_fallow_share": 0.0
+      }
+     ]
+    },
+    "chickpeas": {
+     "years": 7,
+     "pixels_median": 216,
+     "correlation": 0.862,
+     "loo_reduction": 0.351,
+     "loo_reduction_with_temperature": 0.243,
+     "loo_reduction_with_enso": -0.784,
+     "series": [
+      {
+       "year": 2019,
+       "greenness": 0.674,
+       "index": -0.1544,
+       "pixels": 242,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2020,
+       "greenness": 0.7359,
+       "index": 0.1622,
+       "pixels": 138,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2021,
+       "greenness": 0.6061,
+       "index": -0.2692,
+       "pixels": 182,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2022,
+       "greenness": 0.7334,
+       "index": 0.2848,
+       "pixels": 116,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2023,
+       "greenness": 0.6771,
+       "index": -0.218,
+       "pixels": 216,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2024,
+       "greenness": 0.7013,
+       "index": -0.1015,
+       "pixels": 383,
+       "after_fallow_share": 0.0
+      },
+      {
+       "year": 2025,
+       "greenness": 0.6546,
+       "index": -0.1468,
+       "pixels": 400,
+       "after_fallow_share": 0.0
+      }
+     ]
+    }
+   }
+  }
+ ],
+ "sensitivities": {
+  "winter_wheat": {
+   "value": 1.0,
+   "basis": "definition",
+   "n_years": null
+  },
+  "spring_wheat": {
+   "estimate": 1.739,
+   "loo_reduction": 0.295,
+   "n_years": 18,
+   "n_pairs": 72,
+   "value": 1.739,
+   "basis": "measured (greenness)",
+   "note": "Clipped to 0.5\u20132.0. Greenness saturates over dense wheat, which inflates other crops' ratios."
+  },
+  "spring_barley": {
+   "estimate": 1.403,
+   "loo_reduction": 0.233,
+   "n_years": 18,
+   "n_pairs": 41,
+   "value": 1.403,
+   "basis": "measured (greenness)",
+   "note": "Clipped to 0.5\u20132.0. Greenness saturates over dense wheat, which inflates other crops' ratios."
+  },
+  "spring_peas": {
+   "estimate": 0.749,
+   "loo_reduction": 0.118,
+   "n_years": 10,
+   "n_pairs": 17,
+   "value": 0.749,
+   "basis": "measured (greenness)",
+   "note": "Clipped to 0.5\u20132.0. Greenness saturates over dense wheat, which inflates other crops' ratios."
+  },
+  "lentils": {
+   "estimate": 1.177,
+   "loo_reduction": 0.145,
+   "n_years": 15,
+   "n_pairs": 17,
+   "value": 1.177,
+   "basis": "measured (greenness)",
+   "note": "Clipped to 0.5\u20132.0. Greenness saturates over dense wheat, which inflates other crops' ratios."
+  },
+  "chickpeas": {
+   "estimate": 0.9,
+   "loo_reduction": 0.096,
+   "n_years": 7,
+   "n_pairs": 14,
+   "value": 1.0,
+   "basis": "assumed",
+   "reason": "fewer than 8 years"
+  },
+  "spring_canola": {
+   "estimate": 1.26,
+   "loo_reduction": 0.433,
+   "n_years": 11,
+   "n_pairs": 18,
+   "value": 1.26,
+   "basis": "measured (greenness)",
+   "note": "Clipped to 0.5\u20132.0. Greenness saturates over dense wheat, which inflates other crops' ratios."
+  }
+ },
+ "county_yields": {
+  "available": false
+ },
+ "quick_tests": {
+  "east_correlation": 0.64,
+  "west_correlation": 0.42,
+  "source": "docs/EXPERIMENTS.md, test 2 (2000\u20132025, all cropped pixels, water supply not this index)"
+ },
+ "summary": {
+  "east_correlation": 0.726,
+  "west_correlation": 0.582,
+  "east_years": 18,
+  "west_years": 18
+ }
+}

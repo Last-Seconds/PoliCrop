@@ -8,6 +8,7 @@ from ...core.content import Content
 from ...core.service import Providers
 from .cdl import CdlOverlay, CropScapeCountyCdl, PlanetaryComputerCdl, UsCdlProvider
 from .acis import AcisStations
+from .oni import NoaaOni
 from .cdl_sequences import CdlRoleSequences
 from .daymet import DaymetWeather, SnapToDaymetGrid
 from .drought import UsDroughtMonitor
@@ -75,6 +76,7 @@ def build_us_providers(content: Content, cache: FileCache) -> Providers:
     stations = CachedProvider(AcisStations(), cache, "acis", ["stations", "daily"], lambda m, a, r: 30 * DAY)
     return Providers(region=region, crops=crops, weather=weather, vegetation=vegetation, overlay=overlay,
                      soil=soil, drought=drought, sequences=sequences, stations=stations, boundaries=boundaries,
+                     oni=CachedProvider(NoaaOni(), cache, "oni", ["text"], lambda m, a, r: 7 * DAY),
                      soil_moisture=CachedProvider(CropCasmaSoilMoisture(), cache, "casma", ["weeks", "week_grid"],
                                                   lambda m, a, r: None if int(a[0]) < dt.date.today().year else 7 * DAY),
                      terrain=CachedProvider(NasademTerrain(float(s["terrain.pixel_size_m"])), cache, "nasadem", ["elevation"]),

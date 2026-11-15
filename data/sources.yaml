@@ -81,6 +81,21 @@ sources:
 - id: S26
   citation: Zuger and Burke, *Spring Canola Seeding Rates*, WSU 2018 Field Day Abstracts
   url: https://pnwcanola.org/wp-content/uploads/2026/05/Spring-Canola-Seeding-Rates.pdf
+- id: S27
+  citation: Kirby, Pan, Huggins, Painter and Bista, "Rotational Diversification and Intensification", Chapter 5 of *Advances in Dryland Farming in the Inland Pacific Northwest*, WSU Extension EM108, 2017
+  url: null
+- id: S28
+  citation: Reese, Pan, Young and Schillinger, "Winter Canola Water and Nitrogen Use in Low Rainfall Areas of Eastern Washington", WSU 2016 Field Day Abstracts
+  url: null
+- id: S29
+  citation: Sowers et al., *Oilseed Production Case Studies in the Eastern Washington High Rainfall Zone*, WSU Extension EM037E
+  url: null
+- id: S30
+  citation: '"Nitrogen fixation varies between and within pulse crops", Canadian Agronomist, 2018, reporting Gan et al. 2017'
+  url: null
+- id: S31
+  citation: Alberta Agriculture, *Crop Water Use and Requirements*, Agdex 100/561-1, 2011
+  url: null
 - id: DATA_SOURCES
   citation: Field Shift data-source survey (docs/DATA_SOURCES.md), station and Daymet comparisons, 2026-11-15
   url: null

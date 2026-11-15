@@ -20,7 +20,8 @@ from ..soil import FieldSoil
 from ..weather import DailySeries
 from . import warnings as warnings_mod
 from .compare import SAME, BETTER, WORSE, Table, Verdict, band_of, order_key, select, verdict
-from .generate import Candidate, CropPool, check_rules, describe_differences, enumerate_candidates
+from .generate import (Candidate, CropPool, best_alignment, canonical, check_rules, describe_differences,
+                       enumerate_candidates)
 from .inputs import FarmerInputs
 from .measures import FieldModel, MEASURES, Quantity, crops_of, margins, score_all
 from .model import Strategy, make_steps
@@ -45,6 +46,7 @@ class PlanResult:
     current: Option
     shown: list[Option]
     more: list[Option]
+    kept: list[Option]
     field_model: FieldModel
     inputs: FarmerInputs
     priorities: list[str]
@@ -68,29 +70,42 @@ def _extremes(series: DailySeries, years: list[int], configs) -> dict[str, dict]
 
 
 def build_field_model(content: Content, series: DailySeries, soil: FieldSoil, reference: list[Crop],
-                      inputs: FarmerInputs) -> FieldModel:
+                      inputs: FarmerInputs, fitted: dict[str, float] | None = None) -> FieldModel:
+    """`fitted` (brief 3, part C): e_winter and storage_factor fitted to the farmer's records, when applied."""
     s = content.settings
-    base = build_replay(series, soil.capacity_mm, s)
+    fitted = fitted or {}
+    cap = {k: v * float(fitted.get("storage_factor", 1.0)) for k, v in soil.capacity_mm.items()}
+
+    def replay_of(ser, **kw):
+        rp = build_replay(ser, cap, s, **kw)
+        if "e_winter" in fitted:
+            rp.constants["central"] = {**rp.constants["central"], "e_winter": float(fitted["e_winter"])}
+        return rp
+
+    base = replay_of(series)
     if inputs.has_scenario:
         scn_series = series.adjusted(1 + inputs.rain_pct / 100.0, tuple(s["scenario.rain_months"]),
                                      units.delta_f_to_c(inputs.temp_f))
-        replay = build_replay(scn_series, soil.capacity_mm, s, last_year=int(base.years[-1]))
+        replay = replay_of(scn_series, last_year=int(base.years[-1]))
     else:
         scn_series, replay = series, base
     fm = FieldModel(content=content, base=base, replay=replay, soil=soil, reference=reference,
                     tillage=inputs.effective_tillage(content), tillage_from_farmer=inputs.tillage is not None,
                     yields_kg_ha=inputs.yields_kg_ha(content), ph=inputs.ph, dry_mode=inputs.dry_mode)
     fm.extremes = _extremes(scn_series, fm.recent_years, content.warnings)
+    fm.fitted = dict(fitted)
     return fm
 
 
 def run_plan(content: Content, existing_crops: list[Crop], reference: list[Crop], pool: CropPool,
              rules: list[Rule], series: DailySeries, soil: FieldSoil, inputs: FarmerInputs,
-             first_harvest_year: int, nearby: Any = None) -> PlanResult:
+             first_harvest_year: int, nearby: Any = None, fit_hook=None) -> PlanResult:
     t0 = time.time()
     s = content.settings
     scorers = build_scorers(list(s["comparison.measures"]))
     fm = build_field_model(content, series, soil, reference, inputs)
+    if fit_hook is not None:  # brief 3, parts B, C and E: the farmer's records change levels and constants
+        fm = fit_hook(fm) or fm
     fm.nearby = nearby
     priorities = inputs.effective_priorities(content)
     mg = margins(s)
@@ -126,9 +141,15 @@ def run_plan(content: Content, existing_crops: list[Crop], reference: list[Crop]
     def tie(o: Option) -> float:
         return o.nearby if o.nearby is not None else o.prevalence
 
+    seen_min = next((float(w.params.get("min_share", 0.01)) for w in content.warnings
+                     if w.id == "not_seen_nearby" and w.enabled), None)
+
+    def seen(o: Option) -> bool:
+        return o.nearby is None or seen_min is None or o.nearby >= seen_min
+
     order = sorted(range(len(options)), key=lambda i: order_key(
         options[i].verdicts, options[i].scores, priorities, options[i].strategy.harvests, tie(options[i]),
-        inputs.dry_mode))
+        inputs.dry_mode, seen(options[i])))
     table = Table.build([o.scores for o in options] + [current.scores],
                         [o.strategy.harvests for o in options] + [current.strategy.harvests], mg)
     k = int(s["comparison.alternatives_shown"])
@@ -143,8 +164,12 @@ def run_plan(content: Content, existing_crops: list[Crop], reference: list[Crop]
         o.strategy.id = letters[j] if j < len(letters) else f"S{j + 1}"
         o.strategy.label = f"Option {o.strategy.id}"
         o.strategy.differences, o.strategy.summary = describe_differences(existing_crops, o.crops, content)
-    for o in [current] + shown + more:
+    kept = kept_options(content, inputs, existing_crops, shown + more, rules, fm, scorers, current, mg,
+                        first_harvest_year, default_window, nearby)
+    for o in [current] + shown + more + kept:
         o.warnings = warnings_mod.evaluate(o.crops, fm, content.warnings)
+    # The farmer's own rotation is what they grow: "not seen nearby" says nothing useful about it.
+    current.warnings = [w for w in current.warnings if w.code != "W11"]
 
     # Honest outcomes (brief 6.6).
     top = priorities[0]
@@ -181,4 +206,39 @@ def run_plan(content: Content, existing_crops: list[Crop], reference: list[Crop]
         "mean_precip_mm": fm.mean_precip_mm,
         "scenario": {"rain_pct": inputs.rain_pct, "temp_f": inputs.temp_f},
     }
-    return PlanResult(current, shown, more, fm, inputs, priorities, stats, outcomes, replay_info)
+    return PlanResult(current, shown, more, kept, fm, inputs, priorities, stats, outcomes, replay_info)
+
+
+def kept_options(content: Content, inputs: FarmerInputs, existing: list[Crop], listed: list[Option], rules,
+                 fm: FieldModel, scorers, current: Option, mg: dict, first_harvest_year: int,
+                 default_window: SeasonWindow, nearby) -> list[Option]:
+    """Rotations the farmer marked "keep" (brief 3, F). One already listed is marked kept rather than repeated;
+    the rest are scored like any option and compared with the current rotation. They are never dropped, even if
+    they break a rule now (the rule result is shown instead)."""
+    s = content.settings
+    weights = dict(s["generation.distance_weights"])
+    small_max, mod_max = float(s["comparison.band_small_max"]), float(s["comparison.band_moderate_max"])
+    by_canon = {canonical(o.strategy.crop_ids): o for o in listed}
+    out = []
+    for j, ids in enumerate(inputs.kept):
+        hit = by_canon.get(canonical(tuple(ids)))
+        if hit is not None:
+            hit.strategy.extra["kept"] = True
+            continue
+        crops = [content.crop(i) for i in ids]
+        if len(crops) == len(existing):
+            crops, d = best_alignment(existing, crops, weights)
+        else:
+            d = float(len(crops))
+        st = Strategy(f"K{j + 1}", "kept", make_steps(crops, first_harvest_year, default_window), distance=d)
+        st.label = f"Kept option {j + 1}"
+        st.extra["kept"] = True
+        check_rules(st, rules, content)
+        st.differences, st.summary = describe_differences(existing, crops, content)
+        o = Option(st, crops, score_all(crops, fm, scorers))
+        o.verdicts = {m: verdict(o.scores[m], current.scores[m], mg[m]) for m in MEASURES}
+        o.band = band_of(d, len(existing), small_max, mod_max)
+        if nearby is not None:
+            o.nearby = nearby.share(crops)
+        out.append(o)
+    return out

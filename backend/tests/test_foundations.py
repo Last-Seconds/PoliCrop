@@ -58,9 +58,8 @@ def test_unit_conversions_round_trip_and_known_values():
 
 def test_content_converts_us_units_on_load(content):
     peas = content.crop("spring_peas")
-    assert peas.water_need["need_mm"] == pytest.approx(9.3 * 25.4)
+    assert peas.water_use["use_mm"] == pytest.approx(9.3 * 25.4)
     assert peas.residue["low_kg_ha"] == pytest.approx(units.lb_ac_to_kg_ha(1500))
-    assert content.crop("winter_peas").water_need["offset_mm"] == pytest.approx(-1.2 * 25.4)
     assert content.crop("winter_wheat").regional_yield["kg_ha"] == pytest.approx(units.lb_ac_to_kg_ha(4800))
 
 
@@ -104,13 +103,22 @@ def test_h2_uses_real_windows(content, rules):
     assert not r.passed and "before" in r.reason
 
 
-def test_h3_same_legume_within_three_years_cyclic(content, rules):
+def test_h3_any_two_legumes_three_years_apart_cyclic(content, rules):
     # Lentils in years 1 and 4 of a 4-year rotation return after 3 years: allowed.
     assert check(rules, content, strat(content, "lentils", "winter_wheat", "spring_wheat", "fallow"))["H3"].passed
     # In a 2-year rotation the same legume comes back every other year.
     assert not check(rules, content, strat(content, "chickpeas", "winter_wheat"))["H3"].passed
-    # Different legumes close together are a warning (W2), not a hard-rule failure.
-    assert check(rules, content, strat(content, "lentils", "winter_wheat", "spring_peas", "spring_wheat"))["H3"].passed
+    # Brief 3, S1: different legumes close together now fail too (W2 is gone).
+    r = check(rules, content, strat(content, "lentils", "winter_wheat", "spring_peas", "spring_wheat"))["H3"]
+    assert not r.passed and "spring peas follows lentils after 2 years" in r.reason.lower()
+    assert not check(rules, content, strat(content, "spring_peas", "lentils", "chickpeas"))["H3"].passed
+    # Across the wrap: chickpeas in year 3, winter peas in year 1 of the next cycle.
+    assert not check(rules, content, strat(content, "winter_peas", "winter_wheat", "chickpeas"))["H3"].passed
+    # A three-year plan holds one legume at most, and one is allowed.
+    assert check(rules, content, strat(content, "winter_wheat", "spring_wheat", "chickpeas"))["H3"].passed
+    # Six years, two legumes three years apart each way: allowed.
+    assert check(rules, content, strat(content, "lentils", "winter_wheat", "spring_wheat", "chickpeas",
+                                       "winter_wheat", "spring_barley"))["H3"].passed
 
 
 def test_h5_no_two_years_without_harvest(content, rules):

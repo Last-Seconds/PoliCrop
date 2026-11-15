@@ -7,6 +7,7 @@ Word list (brief section 9): no "NDVI", "candidate", "dominated", "replay",
 from __future__ import annotations
 
 import math
+import re
 from fractions import Fraction
 
 from . import units
@@ -28,11 +29,12 @@ WORSE_PHRASE = {"water": "short of water more often", "soil": "less crop residue
                 "nitrogen": "less nitrogen from legumes", "variety": "less crop variety"}
 KIND_WORDS = {"harvested": "a harvested crop", "fallow": "fallow", "cover": "a cover crop"}
 MODEL_GAPS = [
-    "Heat and evaporation are not in the water budget. A hot, dry spring hurts crops more than the missing rain "
+    "Heat and evaporation are not in the water estimate. A hot, dry spring hurts crops more than the missing rain "
     "alone suggests.",
-    "The water needs of peas, lentils, chickpeas and spring canola are fixed figures from one trial "
-    "(Pendleton, Oregon, wetter-than-average years), not a response to conditions.",
-    "Water left behind by shallow-rooted crops is ignored.",
+    "Every crop is assumed to need what it usually gets on this field, as cereals are. Peas, lentils, chickpeas "
+    "and canola may swing more or less with the year than wheat; that is not in the water verdict yet.",
+    "Water left behind by shallow-rooted crops is ignored. Peas, lentils and chickpeas \u201cgenerally use 15\u201335% "
+    "less water than cereals or oilseeds, leaving more water in the profile for subsequent crops\u201d [S27].",
     "Weather is a 1 km grid estimate (Daymet), and soil water storage comes from the soil survey, not from your field.",
 ]
 
@@ -134,7 +136,7 @@ def soil_text(q: Quantity) -> dict:
     w = [x for x in q.details["winters"] if x["after_position"] in q.details["weakest"]][0]
     after = "after the cover crop" if w["after_role"] == "cover_crop" else (
         "at the end of the fallow year" if w["after_role"] == "fallow" else f"after the {w['after_crop'].lower()}")
-    v = f"About {lbac(q.central)} of crop residue in the barest winter, {after}"
+    v = f"About {lbac(q.central)} of crop residue in the winter with least cover, {after}"
     rng = None if abs(q.high - q.low) < 1 else lbac_range(q.low, q.high)
     return {"value": v, "range": rng}
 
@@ -154,7 +156,7 @@ def variety_text(q: Quantity) -> dict:
     d = q.details
     run = d["grass_run"]
     run_t = "no grass crops" if run == 0 else (f"at most {run} grass crop{'s' if run > 1 else ''} in a row")
-    return {"value": f"{d['groups']} of 4 crop groups; {run_t}", "range": None}
+    return {"value": f"{d['groups']} of 4 kinds of crop; {run_t}", "range": None}
 
 
 TEXT = {"water": water_text, "soil": soil_text, "nitrogen": nitrogen_text, "variety": variety_text}
@@ -229,18 +231,17 @@ def evidence(opt: Option, res: PlanResult, content: Content) -> list[dict]:
                     [f"{h['crop'].lower()} short by {inch(h['shortfall_mm'])}" for h in short]) + ".")
             else:
                 lines.append(f"In {hy}, the driest and hottest year on record here, no crop in this rotation came out "
-                             "short by this budget, which has no heat term (see What we don't know).")
+                             "short by this water estimate, which has no heat term (see What we don't know).")
         for c in d["crops"]:
-            how = "a fixed figure"
-            if c["need_method"] == "self_calibrated":
-                ref = join_words([KIND_WORDS[k] for k in c["need_reference"]])
-                how = f"what it usually gets here after {ref}"
-            elif c["need_method"] == "relative_to":
-                how = "set from the winter wheat figure"
+            ref = join_words([KIND_WORDS[k] for k in c["need_reference"]])
+            how = f"what it usually gets here after {ref}"
             lines.append(f"{c['crop']} after {KIND_WORDS[c['after']]}: needs about {inch(c['need_mm'])} ({how}); "
                          f"usually gets {inch(c['median_supply_mm'])}; short in {c['short_years']} of {c['years']} years.")
         if d["not_assessed_crops"]:
             lines.append(f"Not assessed for water (no figure): {join_words(sorted(set(d['not_assessed_crops'])))}.")
+        if fm.fitted:
+            lines.append("✎ Fitted to your records: " + "; ".join(
+                f"{FIT_WORDS[k]} {v:.0%}" for k, v in fm.fitted.items()) + "." + _example(fm, "records"))
     else:
         lines.append(f"Not assessed: {q.not_assessed_reason}")
     out.append({"measure": "water", "label": MEASURE_LABELS["water"], "lines": lines,
@@ -250,7 +251,7 @@ def evidence(opt: Option, res: PlanResult, content: Content) -> list[dict]:
     lines = []
     if q.assessed:
         lines.append("Crop residue means the straw and stubble left on the field. Erosion here happens in winter, "
-                     "from rain and snowmelt on frozen ground, so the barest winter is what counts.")
+                     "from rain and snowmelt on frozen ground, so the winter with least cover is what counts.")
         for w in q.details["winters"]:
             after = ("a cover crop" if w["after_role"] == "cover_crop" else
                      "the fallow year" if w["after_role"] == "fallow" else f"the {w['after_crop'].lower()}")
@@ -261,7 +262,8 @@ def evidence(opt: Option, res: PlanResult, content: Content) -> list[dict]:
                      + f", leaving {q.details['tillage_factor']:.0%} of residue on the surface.")
         for name, y in q.details["yields"].items():
             if y["kg_ha"] is not None:
-                lines.append(f"{name} residue is estimated from {y['text']}: {lbac(y['kg_ha'])} of grain.")
+                lines.append(f"{name} residue is estimated from {y['text']}{_borrowed(y, fm)}: {lbac(y['kg_ha'])} of grain."
+                             + _example(fm, y["tag"]))
         note = sensitivity_note(fm)
         if note:
             lines.append(note + " No tons-per-acre erosion figure is given: the standard formula handles "
@@ -277,7 +279,8 @@ def evidence(opt: Option, res: PlanResult, content: Content) -> list[dict]:
         lines.append(f"{nitrogen_text(q)['value']}." + (f" Range: {nitrogen_text(q)['range']}." if nitrogen_text(q)['range'] else ""))
         for l in q.details["legumes"]:
             rng = "" if abs(l["high"] - l["low"]) < 0.1 else f" ({units.kg_ha_to_lb_ac(l['low']):.0f}–{units.kg_ha_to_lb_ac(l['high']):.0f})"
-            yt = f", at {lbac(l['yield_kg_ha'])} from {l['yield_text']}" if l.get("yield_kg_ha") else ""
+            yt = (f", at {lbac(l['yield_kg_ha'])} from {l['yield_text']}{_borrowed({'borrowed_from': l.get('borrowed_from')}, fm)}"
+                  + _example(fm, l.get("yield_tag"))) if l.get("yield_kg_ha") else ""
             lines.append(f"{l['crop']} (year {l['position']}): about {units.kg_ha_to_lb_ac(l['central']):.0f} lb/acre{rng} "
                          f"for the next crop{yt}.")
         lines.append(f"{years_grow(q.details['demanding_years'], q.details['years'])} a crop that needs nitrogen "
@@ -295,15 +298,44 @@ def evidence(opt: Option, res: PlanResult, content: Content) -> list[dict]:
     # Variety
     q = opt.scores["variety"]
     d = q.details
-    lines = [f"Grows {d['groups']} of the 4 crop groups: {join_words(d['group_names']) or 'none'}."]
+    lines = [f"Grows {d['groups']} of the 4 kinds of crop: {join_words(d['group_names']) or 'none'}."]
     if d["missing_groups"]:
         lines.append(f"Missing: {join_words(d['missing_groups'])}.")
     lines.append(f"Longest run of grass crops (wheat, barley) in a row: {d['grass_run']}.")
-    lines.append("Why groups, not crop names: the main grass weeds here (downy brome, jointed goatgrass) share "
+    lines.append("Why kinds, not crop names: the main grass weeds here (downy brome, jointed goatgrass) share "
                  "winter wheat's life cycle, and broadleaf crops allow selective control of grass weeds.")
     out.append({"measure": "variety", "label": MEASURE_LABELS["variety"], "lines": lines,
                 "sources": _src(content, ["S4", "S3"])})
     return out
+
+
+FIT_WORDS = {"e_winter": "share of winter rain and snow the soil keeps", "storage_factor": "soil water storage, as a share of the soil survey's"}
+
+
+def _borrowed(y: dict, fm) -> str:
+    names = [fm.content.crop(c).name.lower() for c in (y.get("borrowed_from") or []) if fm.content.has_crop(c)]
+    return f" (borrowed: estimated from your {join_words(names)} records)" if names else ""
+
+
+def _example(fm, tag) -> str:
+    return " Example data, not a real farm." if fm.example and tag in ("records", "borrowed") else ""
+
+
+def records_mark(m: str, opt: Option, fm) -> str:
+    """A short mark on a first-layer line whose figure came from the farmer's records (brief 3, part C)."""
+    if m == "water" and fm.fitted:
+        mark = "fitted to your records"
+    elif m in ("soil", "nitrogen"):
+        tags = set()
+        src = opt.scores[m].details.get("yields", {}).values() if m == "soil" else opt.scores[m].details.get("legumes", [])
+        for y in src:
+            tags.add(y.get("tag") or y.get("yield_tag"))
+        if not tags & {"records", "borrowed"}:
+            return ""
+        mark = "uses your records" if "records" in tags else "borrowed from your records"
+    else:
+        return ""
+    return f" ✎ {mark}" + (" (example data, not a real farm)" if fm.example else "") + "."
 
 
 def why(opt: Option, current: Option) -> list[str]:
@@ -319,12 +351,12 @@ def why(opt: Option, current: Option) -> list[str]:
             if m == "water":
                 parts.append(f"{share_words(q.central)} short of water against {share_words(c.central)} now")
             elif m == "soil":
-                parts.append(f"about {lbac(q.central)} of residue in the barest winter against {lbac(c.central)} now")
+                parts.append(f"about {lbac(q.central)} of residue in the winter with least cover against {lbac(c.central)} now")
             elif m == "nitrogen":
                 parts.append(f"about {lbac_yr(q.central)} of nitrogen from legumes against {lbac_yr(c.central)} now")
             elif m == "variety":
                 if q.details["groups"] != c.details["groups"]:
-                    parts.append(f"{q.details['groups']} of 4 crop groups against {c.details['groups']} now")
+                    parts.append(f"{q.details['groups']} of 4 kinds of crop against {c.details['groups']} now")
                 else:
                     def run(r):
                         return "no grass crops" if r == 0 else f"at most {r} grass crop{'s' if r > 1 else ''} in a row"
@@ -399,17 +431,17 @@ def unknowns(opt: Option, current: Option, res: PlanResult) -> list[str]:
     fm = res.field_model
     for name, y in (opt.scores["soil"].details.get("yields") or {}).items():
         if y["tag"] == "regional_wetter":
-            out.append(f"The {name.lower()} yield is a regional figure from wetter places (18 in or more a year).")
+            out.append(f"The {name.lower()} yield is a typical figure from a wetter zone: none is published for this one.")
     for l in opt.scores["nitrogen"].details.get("legumes", []) if opt.scores["nitrogen"].assessed else []:
         if l.get("yield_tag") == "regional_wetter":
-            out.append(f"The {l['crop'].lower()} yield behind its nitrogen credit is a regional figure from wetter places.")
+            out.append(f"The {l['crop'].lower()} yield behind its nitrogen credit is a typical figure from a wetter zone.")
     if fm.soil.capacity_default:
         out.append("The soil database could not be read, so soil water storage uses a stated default "
                    f"({inch(fm.soil.capacity_mm['0_150cm'])} in the top 5 ft).")
     out += MODEL_GAPS
     if res.inputs.temp_f:
         out.append("The temperature setting changes how often the heat and cold limits are reached; it does not raise "
-                   "crop water demand, because the budget has no evaporation term. That understates the effect of warming.")
+                   "crop water demand, because the water estimate has no evaporation term. That understates the effect of warming.")
     return list(dict.fromkeys(out))
 
 
@@ -467,7 +499,7 @@ def notes(opt: Option, current: Option, content: Content) -> dict:
         harvest_text += f" (now {hc})"
     nearby = None
     if opt.nearby is not None:
-        nearby = {"share": opt.nearby, "text": f"{pct(opt.nearby)} of nearby cropland followed this pattern of crop types "
+        nearby = {"share": opt.nearby, "text": f"{pct(opt.nearby)} of nearby cropland followed this kind of rotation "
                                                "recently: evidence it is workable here, not proof it is good."}
     return {
         "harvests": h, "years": n, "harvests_text": harvest_text,
@@ -497,6 +529,118 @@ def summary_sentence(opt: Option, current: Option) -> str:
     return f"{change}: {reason}."
 
 
+VERDICT_WORDS = {BETTER: "better", SAME: "about the same", WORSE: "worse", None: "not assessed"}
+SHORT_NAMES = {"Winter wheat": "Winter wheat", "Spring wheat": "Spring wheat", "Spring barley": "Barley"}
+
+
+def word_count(*texts) -> int:
+    """Words as the brief counts them: runs of letters or digits (symbols such as ▲ do not count)."""
+    n = 0
+    for t in texts:
+        if isinstance(t, (list, tuple)):
+            n += word_count(*t)
+        elif t:
+            n += len(re.findall(r"[A-Za-z0-9][A-Za-z0-9'’.,–-]*", str(t)))
+    return n
+
+
+def closed_card(opt: Option, current: Option, cautions: list[dict]) -> dict:
+    """What a closed card shows (brief 3, S2 target 3): 45 words or fewer."""
+    is_cur = opt is current
+    verdicts = []
+    for m in MEASURES:
+        v = None if is_cur else opt.verdicts[m].value
+        verdicts.append({"measure": m, "label": SHORT_MEASURE[m], "value": v,
+                         "symbol": "" if is_cur else SYMBOL[v],
+                         "word": "" if is_cur else ("about the same*" if opt.verdicts[m].held_by_assumed
+                                                     else VERDICT_WORDS[v])})
+    h, hc, n = opt.strategy.harvests, current.strategy.harvests, len(opt.strategy.steps)
+    harvest = None if (is_cur or h == hc) else f"{h} harvest{'s' if h != 1 else ''} in {n} years (now {hc})"
+    out = {
+        "title": "Your rotation now" if is_cur else opt.strategy.label,
+        "band": None if is_cur else BAND_LABELS[opt.band].capitalize(),
+        "chips": [{"name": SHORT_NAMES.get(c.name, c.name), "role": c.role} for c in opt.crops],
+        "verdicts": verdicts,
+        "caution": cautions[0]["short"] if cautions else None,
+        "more_cautions": max(0, len(cautions) - 1),
+        "harvest": harvest,
+    }
+    # Long plans: the band, then the harvest line, give way (both stay in the details).
+    for key in ("band", "harvest"):
+        if closed_words(out) > CLOSED_MAX_WORDS:
+            out[key] = None
+    return out
+
+
+CLOSED_MAX_WORDS = 45
+SHORT_MEASURE = {"water": "Water", "soil": "Soil", "nitrogen": "Nitrogen", "variety": "Variety"}
+
+
+def closed_words(cl: dict) -> int:
+    """Words on a closed card as the page shows it, including its fixed labels."""
+    return word_count(cl["title"], cl["band"], [x["name"] for x in cl["chips"]], [v["label"] for v in cl["verdicts"]],
+                      [v["word"] for v in cl["verdicts"]], cl["caution"],
+                      f"{cl['more_cautions']} more cautions" if cl["more_cautions"] else "", cl["harvest"],
+                      "Why and details")
+
+
+def _evidence_short(m: str, opt: Option, current: Option) -> str:
+    """One line per measure for the first details layer, with the current rotation's figure."""
+    q, c = opt.scores[m], current.scores[m]
+    now = opt is not current and c.assessed
+    if not q.assessed:
+        return f"Not assessed: {q.not_assessed_reason}"
+    if m == "water":
+        t = f"{share_words(q.central).capitalize()} short of water"
+        return t + (f"; now {re.sub(r' crops?', '', share_words(c.central))}." if now else ".")
+    if m == "soil":
+        t = f"About {lbac(q.central)} of residue in the winter with least cover"
+        return t + (f"; now {_round_sig(units.kg_ha_to_lb_ac(c.central)):,.0f}." if now else ".")
+    if m == "nitrogen":
+        t = "No nitrogen from legumes" if q.central <= 0 else f"About {lbac_yr(q.central)} of nitrogen from legumes"
+        return t + (f"; now {_n(units.kg_ha_to_lb_ac(c.central))}." if now else ".")
+    return f"{q.details['groups']} of 4 kinds of crop" + (f"; now {c.details['groups']}." if now else ".")
+
+
+FIRST_LAYER_MAX_WORDS = 150
+HEADINGS = ("Why this option", "The evidence", "What it may gain you", "What we don't know", "Check locally")
+
+
+def first_layer(opt: Option, res: PlanResult, cautions: list[dict]) -> dict:
+    """The five headings of brief 2 in 150 words or fewer altogether (brief 3, S2 target 4)."""
+    current = res.current
+    is_cur = opt is current
+    if is_cur:
+        why = "What you grow now, as the crop map shows it; every option is compared with it."
+        gain = "This is your current rotation."
+    else:
+        why = summary_sentence(opt, current)
+        g = gains(opt, current, res, None)
+        gain = g[0] if g else ""
+    held = [m for m in MEASURES if not is_cur and opt.verdicts[m].held_by_assumed]
+    deciding = [a["text"] for a in assumed_for(opt, current) if a["measure"] in held][:3]
+    fm = res.field_model
+    evidence = [{"measure": m, "label": MEASURE_LABELS[m], "text": _evidence_short(m, opt, current) + records_mark(m, opt, fm)}
+                for m in MEASURES]
+    check = [c["short"] for c in cautions[:2]] or ["Ask a local agronomist before changing a rotation."]
+    base = word_count(HEADINGS, why, [e["label"] for e in evidence], [e["text"] for e in evidence], gain, check)
+    unknown: list[str] = []
+    for t in deciding:  # those that changed a verdict, as many as the word limit allows (at least one)
+        if unknown and base + word_count(unknown, t) > FIRST_LAYER_MAX_WORDS:
+            break
+        unknown.append(t)
+    if not unknown:
+        unknown = ["Nothing we don't know changed a verdict here."]
+    return {
+        "why": why,
+        "evidence": evidence,
+        "gains": gain,
+        "unknowns": unknown,
+        "unknowns_more": max(0, len(unknowns(opt, current, res)) - len(deciding[:len(unknown)])),
+        "check": check,
+    }
+
+
 def card(opt: Option, res: PlanResult, content: Content) -> dict:
     current = res.current
     is_cur = opt is current
@@ -506,14 +650,17 @@ def card(opt: Option, res: PlanResult, content: Content) -> dict:
         failed = [r for r in opt.strategy.rule_results if not r.passed]
         if failed:  # one caution for all of them; the details list each rule
             cautions.insert(0, {"code": "/".join(r.code for r in failed), "key": "rules:current", "priority": 5,
-                                "short": f"As mapped, this breaks {len(failed)} rule{'s' if len(failed) > 1 else ''}; "
-                                         "the crop map may be wrong",
+                                "short": f"Breaks {len(failed)} rule{'s' if len(failed) > 1 else ''} as mapped",
                                 "text": " ".join(f"{r.label}: {r.reason}" for r in failed)
                                         + " The crop map may be wrong; check the crop history.",
                                 "basis": "sourced", "source": None})
+    cautions = sorted(cautions, key=lambda c: c["priority"])
     return {
+        "closed": closed_card(opt, current, cautions),
+        "first": first_layer(opt, res, cautions),
         "id": opt.strategy.id,
         "kind": opt.strategy.kind,
+        "kept": bool(opt.strategy.extra.get("kept")),
         "label": opt.strategy.label,
         "band": None if is_cur else opt.band,
         "band_label": None if is_cur else BAND_LABELS[opt.band].capitalize(),
@@ -522,7 +669,7 @@ def card(opt: Option, res: PlanResult, content: Content) -> dict:
         "crop_ids": [c.id for c in opt.crops],
         "lines": measure_lines(opt, current, fm),
         "notes": notes(opt, current, content),
-        "cautions": sorted(cautions, key=lambda c: c["priority"]),
+        "cautions": cautions,
         "details": {
             "why": why(opt, current) if not is_cur else ["This is what you grow now, as the crop map shows it. "
                                                          "Every option is compared with it."],
@@ -538,28 +685,30 @@ def card(opt: Option, res: PlanResult, content: Content) -> dict:
 
 
 def headline(res: PlanResult, content: Content, rotation_text: str) -> list[str]:
-    out = []
+    """One sentence, 25 words or fewer, stating the finding (brief 3, S2). Notes about the crop map and the
+    current rotation breaking a rule live in the current rotation's card; settings notes in `settings_notes`."""
     o = res.outcomes
     top = MEASURE_LABELS[o["top_priority"]].lower()
-    if o["current_breaks_rules"]:
-        r = o["current_breaks_rules"][0]
-        out.append(f"The crop map shows {rotation_text.lower()}, which breaks the rule \u201c{r['label'].lower()}\u201d. "
-                   "The map may be wrong: check the crop history below.")
     if o["no_options"]:
-        out.append("No option passed the rules with the crops grown near this field and your settings.")
-        return out
-    if o["holds_up"]:
-        out.append(f"Your current rotation holds up on {top}; these options trade one thing for another.")
-    else:
+        return ["No option passed the rules with the crops grown near this field and your settings."]
+    good = o["at_least_as_good"][0] if o["at_least_as_good"] else None
+    if not o["holds_up"]:
         best = next((x for x in res.shown if x.verdicts[o["top_priority"]].value == BETTER), None)
         if best:
-            out.append(f"{best.strategy.label} is better than now on {top}, your top priority.")
-    for oid in o["at_least_as_good"][:1]:
-        x = next(y for y in res.shown + res.more if y.strategy.id == oid)
-        n = len(x.strategy.steps)
-        out.append(f"{x.strategy.label} is at least as good as your rotation on all four measures, with "
-                   f"{x.strategy.harvests} harvest{'s' if x.strategy.harvests != 1 else ''} in {n} years against your "
-                   f"{res.current.strategy.harvests}.")
+            if good == best.strategy.id:
+                return [f"{best.strategy.label} is better than now on {top}, your top priority, and no worse on anything."]
+            return [f"{best.strategy.label} is better than now on {top}, your top priority, but gives something up."]
+    if good:
+        return [f"Your rotation holds up on {top}; {_label_of(res, good)} is at least as good on all four measures."]
+    return [f"Your rotation holds up on {top}; the options trade one thing for another."]
+
+
+def _label_of(res: PlanResult, oid: str) -> str:
+    return next(o.strategy.label for o in res.shown + res.more if o.strategy.id == oid)
+
+
+def settings_notes(res: PlanResult) -> list[str]:
+    out = []
     if res.inputs.dry_mode:
         out.append(f"Dry region mode is on: water is judged on the {len(res.field_model.window_years)} driest of the "
                    "last 15 years and put first; ties go to more harvests.")
@@ -574,6 +723,19 @@ def headline(res: PlanResult, content: Content, rotation_text: str) -> list[str]
     return out
 
 
+def current_card(res: PlanResult, content: Content, rotation_text: str, caveats: list[dict]) -> dict:
+    """The current rotation's card. Notes about the crop map's coverage and about the rotation breaking a rule
+    live here, not in the headline (brief 3, S2 target 2)."""
+    c = card(res.current, res, content)
+    notes = []
+    for r in res.outcomes["current_breaks_rules"]:
+        notes.append(f"The crop map shows {rotation_text.lower()}, which breaks the rule \u201c{r['label'].lower()}\u201d. "
+                     "The map may be wrong: check the crop history.")
+    notes += [cv["text"] for cv in caveats]
+    c["details"]["map_notes"] = notes
+    return c
+
+
 def present(res: PlanResult, content: Content, extra: dict) -> dict:
     cur_names = [c.name for c in res.current.crops]
     rot_text = rotation_words(cur_names)
@@ -581,12 +743,14 @@ def present(res: PlanResult, content: Content, extra: dict) -> dict:
     return {
         "status": "ok",
         "headline": headline(res, content, rot_text),
+        "settings_notes": settings_notes(res),
         "current_rotation_text": rot_text,
         "priorities": [{"id": m, "label": MEASURE_LABELS[m]} for m in pr],
         "measures": [{"id": m, "label": MEASURE_LABELS[m], "question": QUESTIONS[m]} for m in MEASURES],
-        "current": card(res.current, res, content),
+        "current": current_card(res, content, rot_text, extra.get("caveats") or []),
         "options": [card(o, res, content) for o in res.shown],
         "more": [card(o, res, content) for o in res.more],
+        "kept": [card(o, res, content) for o in res.kept],
         "inputs": res.inputs.to_dict(content),
         "outcomes": res.outcomes,
         "looking_back": {

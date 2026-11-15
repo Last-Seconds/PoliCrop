@@ -14,7 +14,8 @@ from ..content import Content, Crop, RuleConfig
 from .measures import FieldModel
 
 # Lower = more important. Field-specific risks first; standing notes last.
-PRIORITY = {"W7": 10, "W3": 12, "W9": 12, "W5": 14, "W6": 14, "W4": 16, "W1": 20, "W2": 22, "W4u": 60, "W8": 70}
+PRIORITY = {"W7": 10, "W10": 11, "W3": 12, "W9": 12, "W5": 14, "W6": 14, "W4": 16, "W1": 20, "W11": 30, "W4u": 60,
+            "W8": 70}
 
 
 @dataclass
@@ -26,10 +27,18 @@ class Warning:
     priority: int
     basis: str
     source: str | None
+    serious: bool = False  # addendum 2, A1: ranks the option last and is never hidden
 
     def to_dict(self) -> dict:
         return {"code": self.code, "key": self.key, "short": self.short, "text": self.text,
-                "priority": self.priority, "basis": self.basis, "source": self.source}
+                "priority": self.priority, "basis": self.basis, "source": self.source, "serious": self.serious}
+
+
+SERIOUS_HEAT_YEARS = 5  # addendum 2, A1 (assumed): chickpea heat counts as serious in 5 or more of 15 years
+
+
+def is_serious(w: Warning) -> bool:
+    return w.serious
 
 
 WARNING_REGISTRY: dict[str, Callable] = {}
@@ -66,34 +75,11 @@ def _freq(hit: int, of: int) -> str:
 def w1(crops: list[Crop], fm: FieldModel, p: dict, cfg: RuleConfig) -> list[Warning]:
     pos = [i for i, c in enumerate(crops) if c.id == p.get("crop", "chickpeas")]
     if pos and int(p.get("gap_years", 3)) in _gaps(pos, len(crops)):
-        return [Warning(cfg.code, "W1", "Chickpeas every third year: guides say every 3 to 5 years",
+        return [Warning(cfg.code, "W1", "Chickpeas every third year",
                         "Chickpeas come back every third year. Guides say once in 3 to 5 years, and 4 to 5 years "
                         "where Fusarium wilt is present, because of disease (Ascochyta blight).",
                         PRIORITY["W1"], cfg.basis, cfg.source)]
     return []
-
-
-@register("legumes_close_together")
-def w2(crops: list[Crop], fm: FieldModel, p: dict, cfg: RuleConfig) -> list[Warning]:
-    n = len(crops)
-    gap_min = int(p.get("min_gap_years", 3))
-    leg = [(i, c) for i, c in enumerate(crops) if c.role == "legume"]
-    pairs = []
-    for a in range(len(leg)):
-        for b in range(a + 1, len(leg)):
-            (i, ci), (j, cj) = leg[a], leg[b]
-            if ci.id == cj.id:
-                continue
-            gap = min(j - i, i + n - j)
-            if gap < gap_min:
-                pairs.append((ci.name, cj.name, gap))
-    if not pairs:
-        return []
-    a, b, gap = pairs[0]
-    b = b.lower()
-    return [Warning(cfg.code, "W2", f"{a} and {b} only {gap} year{'s' if gap > 1 else ''} apart",
-                    f"{a} and {b} are less than {gap_min} years apart. A break of three or more years between "
-                    "pulse crops lets diseased residue disappear.", PRIORITY["W2"], cfg.basis, cfg.source)]
 
 
 def _dry(crop_id: str, label: str, wid: str):
@@ -108,7 +94,7 @@ def _dry(crop_id: str, label: str, wid: str):
         why = {"W3": "Spring canola is uncommon where yearly rain and snow is under 12 in.",
                "W9": "Very little spring pea is grown below about 17.7 in (450 mm) a year: water and heat stress "
                      "at flowering limit it."}[wid]
-        return [Warning(cfg.code, wid, f"{name} in a dry place ({mean_in:.1f} in a year here)",
+        return [Warning(cfg.code, wid, f"{name} in a dry place",
                         f"This field gets about {mean_in:.1f} in of rain and snow a year. {why}",
                         PRIORITY[wid], cfg.basis, cfg.source)]
     return fn
@@ -116,6 +102,47 @@ def _dry(crop_id: str, label: str, wid: str):
 
 WARNING_REGISTRY["spring_canola_dry"] = _dry("spring_canola", "Spring canola", "W3")
 WARNING_REGISTRY["spring_peas_dry"] = _dry("spring_peas", "Spring peas", "W9")
+
+
+@register("may_be_too_dry")
+def w10(crops: list[Crop], fm: FieldModel, p: dict, cfg: RuleConfig) -> list[Warning]:
+    """Brief 3, S1: a crop's median supply here is under its sourced water use plus the shortfall margin."""
+    dry = []
+    for c in {x.id: x for x in crops}.values():
+        t = fm.too_dry(c)
+        if t and t["dry"]:
+            dry.append((c, t))
+    if not dry:
+        return []
+    c, t = dry[0]
+    names = [x.name.lower() for x, _ in dry]
+    who = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+    def used(tt):
+        if tt["method"] == "from_yield":
+            lo, hi = (units.mm_to_in(v) for v in tt["use_range_mm"])
+            return f"would use about {lo:.1f} to {hi:.1f} in at its typical yield here"
+        return f"used about {units.mm_to_in(tt['use_mm']):.1f} in in a trial"
+    per = "; ".join(f"{x.name.lower()} usually gets about {units.mm_to_in(tt['median_supply_mm']):.1f} in here and "
+                    f"{used(tt)}" for x, tt in dry)
+    return [Warning(cfg.code, "W10", f"{who[:1].upper() + who[1:]} may be too dry here",
+                    f"{per[:1].upper() + per[1:]}. With less than that plus "
+                    f"{units.mm_to_in(t['margin_mm']):.1f} in to spare, a crop here is often short of water.",
+                    PRIORITY["W10"], cfg.basis, cfg.source, serious=True)]
+
+
+@register("not_seen_nearby")
+def w11(crops: list[Crop], fm: FieldModel, p: dict, cfg: RuleConfig) -> list[Warning]:
+    """Brief 3, S1: under `min_share` of nearby cropland follows this kind of rotation."""
+    if fm.nearby is None:
+        return []
+    share = fm.nearby.share(crops)
+    lim = float(p.get("min_share", 0.01))
+    if share is None or share >= lim:
+        return []
+    return [Warning(cfg.code, "W11", "Not seen nearby",
+                    f"Under {lim:.0%} of the cropland near this field followed this kind of rotation in recent "
+                    f"years ({share:.1%}). That does not make it wrong, but nobody nearby shows it works here.",
+                    PRIORITY["W11"], cfg.basis, cfg.source)]
 
 
 @register("soil_acidity")
@@ -126,17 +153,17 @@ def w4(crops: list[Crop], fm: FieldModel, p: dict, cfg: RuleConfig) -> list[Warn
     if fm.ph is None:
         names = sorted({c.name.lower() for c in sensitive})
         names = ", ".join(names[:-1]) + " and " + names[-1] if len(names) > 1 else names[0]
-        return [Warning(cfg.code, "W4u", "Soil acidity not checked: add a soil test pH under Adjust",
+        return [Warning(cfg.code, "W4u", "Soil acidity not checked",
                         f"Soil pH is not known, so acid soil was not checked for {names}. Measured pH in the region "
                         "has fallen below 5 in places; the soil survey's figure describes the soil as surveyed and "
-                        "is not used.", PRIORITY["W4u"], cfg.basis, cfg.source)]
+                        "is not used. Add a soil test pH under Adjust, more settings.", PRIORITY["W4u"], cfg.basis, cfg.source)]
     out = []
     unique = list({c.id: c for c in sensitive}.values())
     for c in sorted(unique, key=lambda c: -c.critical_ph["high"]):
         lo, hi = c.critical_ph["low"], c.critical_ph["high"]
         if fm.ph < hi:
             crit = f"{lo}" if lo == hi else f"{lo}–{hi}"
-            out.append(Warning(cfg.code, f"W4:{c.id}", f"Soil may be too acid for {c.name.lower()} (pH {fm.ph:g})",
+            out.append(Warning(cfg.code, f"W4:{c.id}", f"Soil may be too acid for {c.name.lower()}",
                                f"Your soil test pH is {fm.ph:g}; {c.name.lower()} loses significant yield below "
                                f"about pH {crit}. No absolute cutoff exists; it depends on the soil and the variety.",
                                PRIORITY["W4"], cfg.basis, cfg.source))
@@ -152,10 +179,10 @@ def w5(crops: list[Crop], fm: FieldModel, p: dict, cfg: RuleConfig) -> list[Warn
         return []
     hit, of = f
     lim = _deg(p.get("limit_f", 98))
-    return [Warning(cfg.code, "W5", f"Chickpea heat: a day at or above {lim} in June or July {_freq(hit, of)}",
+    return [Warning(cfg.code, "W5", f"Chickpea heat in {hit} of {of} years",
                     f"Chickpeas are stressed at or above {lim} in early flowering and pod fill. A day that hot came "
                     f"in June or July {_freq(hit, of)} here (the June–July window is assumed).",
-                    PRIORITY["W5"] + (0 if hit else 30), cfg.basis, cfg.source)]
+                    PRIORITY["W5"] + (0 if hit else 30), cfg.basis, cfg.source, serious=hit >= SERIOUS_HEAT_YEARS)]
 
 
 @register("winter_pea_cold")
@@ -167,8 +194,9 @@ def w6(crops: list[Crop], fm: FieldModel, p: dict, cfg: RuleConfig) -> list[Warn
         return []
     hit, of = f
     lim = _deg(p.get("limit_f", -6))
-    return [Warning(cfg.code, "W6", f"Winter-kill risk: a night at or below {lim} {_freq(hit, of)}",
-                    f"Winter peas were killed at {lim} without snow cover in one trial. A night that cold came "
+    return [Warning(cfg.code, "W6", f"Winter-kill risk in {hit} of {of} years",
+                    f"Winter hardiness depends on the variety: from −5 °F ('Lynx') to +10 °F (Austrian winter pea); "
+                    f"{lim} is the limit for 'Windham', the variety in the regional trials. A night that cold came "
                     f"between November and March {_freq(hit, of)} here. Snow cover, which protects the crop, is not known.",
                     PRIORITY["W6"] + (0 if hit else 30), cfg.basis, cfg.source)]
 
@@ -179,7 +207,7 @@ def w7(crops: list[Crop], fm: FieldModel, p: dict, cfg: RuleConfig) -> list[Warn
     d = fm.soil.drainage
     if not peas or not d or d not in p.get("drainage", []):
         return []
-    return [Warning(cfg.code, "W7", f"Peas on {d.lower()} soil",
+    return [Warning(cfg.code, "W7", "Peas on poorly drained soil",
                     f"The main soil on this field ({fm.soil.main_component or 'from the soil survey'}) is {d.lower()}. "
                     "Peas are not planted on poorly drained soils: they die after 24–48 hours of waterlogging.",
                     PRIORITY["W7"], cfg.basis, cfg.source)]
@@ -199,7 +227,7 @@ def w8(crops: list[Crop], fm: FieldModel, p: dict, cfg: RuleConfig) -> list[Warn
             hit = True
     if not hit:
         return []
-    return [Warning(cfg.code, "W8", "Check herbicide carryover from earlier crops",
+    return [Warning(cfg.code, "W8", "Check herbicide carryover",
                     "Some herbicides limit what can follow them for years: for example, after chlorsulfuron (Glean) on "
                     "cereals the label restricts lentils for 36 months and peas for 24; imazethapyr (Pursuit), used on "
                     "legumes, has damaged canola up to six years later. This tool cannot know what was sprayed.",

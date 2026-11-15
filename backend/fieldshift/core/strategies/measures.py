@@ -90,19 +90,29 @@ def _fmt_lb(kg_ha: float) -> str:
 
 # ------------------------------------------------------------------------------------------- yields
 
+ZONE_WORDS = {"annual_crop": "Annual Crop", "transition": "Transition", "grain_fallow": "Grain-Fallow"}
+
+
 @dataclass
 class ExpectedYield:
     kg_ha: float | None
-    tag: str  # farmer | regional | water_relationship | regional_wetter | none
+    tag: str  # farmer | records | borrowed | regional | zone | zone_after_crop | water_relationship | regional_wetter | none
     assumed: list[Assumed] = field(default_factory=list)
+    zone: str | None = None
+    level: Any = None  # fitting.Level behind a "records" or "borrowed" figure
 
     @property
     def text(self) -> str:
+        z = ZONE_WORDS.get(self.zone or "", "")
         return {
             "farmer": "your typical yield",
             "regional": "the regional typical yield (2011–2015)",
+            "zone": f"the typical yield in the {z} zone",
+            "zone_after_crop": f"the typical yield in the {z} zone after a harvested crop",
+            "records": "the regional figure blended with your harvest records",
+            "borrowed": "the regional figure adjusted by your records of similar crops",
             "water_relationship": "the yield this field's usual water supports, from the wheat water relationship",
-            "regional_wetter": "the regional typical yield, from wetter places (18 in or more a year)",
+            "regional_wetter": "the typical yield from a wetter zone",
             "none": "no yield figure",
         }[self.tag]
 
@@ -123,6 +133,9 @@ class FieldModel:
     dry_mode: bool = False
     extremes: dict[str, dict[int, bool | None]] = field(default_factory=dict)  # warning id -> year -> hit
     nearby: Any = None  # optional NearbyUse (stage 4)
+    levels: dict = field(default_factory=dict)  # crop id -> fitting.Level from the farmer's records (brief 3, B/E)
+    fitted: dict = field(default_factory=dict)  # constants fitted to the farmer's records (brief 3, C)
+    example: bool = False  # the records are example data, not a real farm
     _cache: dict = field(default_factory=dict)
 
     # ---- years
@@ -145,6 +158,16 @@ class FieldModel:
     def mean_precip_mm(self) -> float:
         return float(np.mean(self.base.crop_year_precip_mm))
 
+    @property
+    def zone(self) -> str:
+        """Rainfall zone by the field's mean yearly precipitation (addendum item 1)."""
+        p = units.mm_to_in(self.mean_precip_mm)
+        if p >= float(self.settings["residue.regional_yield_min_precip_in"]):
+            return "annual_crop"
+        if p >= float(self.settings["residue.zone_transition_min_precip_in"]):
+            return "transition"
+        return "grain_fallow"
+
     # ---- water needs
     def reference_kinds(self, crop_id: str) -> list[str]:
         """Previous-slot kinds of this crop in the current rotation; 'harvested' if absent."""
@@ -161,18 +184,35 @@ class FieldModel:
         out = None
         if wn is None or crop.root_zone is None or crop.growing_season is None:
             out = None
-        elif wn["method"] == "fixed":
-            out = {e: wn["need_mm"] for e in ENDS}
-        elif wn["method"] == "self_calibrated":
+        else:  # brief 3, S1: every crop is self-calibrated, as brief 2 did for cereals
             root, gs = crop.root_zone["value"], crop.growing_season["value"]
             out = {e: float(np.median(np.concatenate([self.base.supply_for(root, gs, k, e)
                                                       for k in self.reference_kinds(crop.id)])))
                    for e in ENDS}
-        elif wn["method"] == "relative_to":
-            ref = self.need(self.content.crop(wn["crop"]))
-            out = None if ref is None else {e: ref[e] + wn["offset_mm"] for e in ENDS}
         self._cache[key] = out
         return out
+
+    def too_dry(self, crop: Crop) -> dict | None:
+        """The "may be too dry here" check (brief 3, S1): the crop's median supply on this field, in its
+        reference position, against its sourced water use plus the shortfall margin. None if no figure."""
+        use = crop.water_use
+        need = self.need(crop)
+        if use is None or need is None:
+            return None
+        margin = units.in_to_mm(float(self.settings["water.short_threshold_in"]))
+        median = need["central"]
+        if use["method"] == "from_yield":
+            y = self.expected_yield(crop)
+            if y.kg_ha is None:
+                return None
+            lb = units.kg_ha_to_lb_ac(y.kg_ha)
+            use_mm = units.in_to_mm(lb / use["lb_per_in_high"])
+            use_range = (use_mm, units.in_to_mm(lb / use["lb_per_in_low"]))
+        else:
+            use_mm = use["use_mm"]
+            use_range = (use_mm, use_mm)
+        return {"median_supply_mm": median, "use_mm": use_mm, "use_range_mm": use_range, "margin_mm": margin,
+                "dry": median < use_mm + margin, "basis": use["basis"], "method": use["method"]}
 
     def shortfall(self, crop: Crop, kind: str, end: str) -> np.ndarray | None:
         key = ("short", crop.id, kind, end)
@@ -206,10 +246,8 @@ class FieldModel:
         out = []
         wn = crop.water_need or {}
         if wn.get("basis") and wn["basis"].assumed:
-            out.append(Assumed(f"water_need:{crop.id}", f"{crop.name} water need: {_note(wn['basis'])} (assumed)."))
-        if wn.get("method") == "relative_to":
-            ref = self.content.crop(wn["crop"])
-            out += self.water_assumed(ref)
+            out.append(Assumed(f"water_need:{crop.id}", f"{crop.name} needs what it usually gets here, "
+                                                        "as cereals do (assumed)."))
         for blk, what in ((crop.growing_season, "growing season"), (crop.root_zone, "rooting depth")):
             if blk and blk["basis"].assumed:
                 out.append(Assumed(f"{what}:{crop.id}", f"{crop.name} {what}: {_note(blk['basis'])} (assumed)."))
@@ -221,17 +259,33 @@ class FieldModel:
         if key in self._cache:
             return self._cache[key]
         s = self.settings
+        lv = self.levels.get(crop.id)
         if crop.id in self.yields_kg_ha:
             out = ExpectedYield(self.yields_kg_ha[crop.id], "farmer")
+        elif lv is not None and lv.level_kg_ha is not None and (lv.n_records or lv.borrowed_from):
+            out = ExpectedYield(lv.level_kg_ha, "borrowed" if lv.borrowed_from else "records", [], self.zone)
+            out.level = lv
         elif crop.regional_yield is None:
             out = ExpectedYield(None, "none")
         else:
             reg = crop.regional_yield
             assumed = [Assumed(f"yield:{crop.id}", f"{crop.name} typical yield: {_note(reg['basis'])} (assumed).")] \
                 if reg["basis"].assumed else []
-            wet = units.mm_to_in(self.mean_precip_mm) >= float(s["residue.regional_yield_min_precip_in"])
-            if wet:
+            zone = self.zone
+            zones = reg.get("zones") or {}
+            if zone == "annual_crop":
                 out = ExpectedYield(reg["kg_ha"], "regional", assumed)
+            elif zone in zones:
+                kg, tag = zones[zone], "zone"
+                zb = reg["zone_basis"]
+                za = [Assumed(f"yield:{crop.id}", f"{crop.name} typical yield: {_note(zb)} (assumed).")] \
+                    if zb.assumed else []
+                if zone == "transition" and "after_crop_kg_ha" in reg and "fallow" not in self.reference_kinds(crop.id):
+                    kg, tag = reg["after_crop_kg_ha"], "zone_after_crop"
+                    if reg["after_crop_basis"].assumed:
+                        za = [Assumed(f"yield:{crop.id}", f"{crop.name} typical yield after a harvested crop in the "
+                                                          f"Transition zone: {_note(reg['after_crop_basis'])} (assumed).")]
+                out = ExpectedYield(kg, tag, za, zone)
             elif crop.role == "cereal" and (crop.water_need or {}).get("method") == "self_calibrated":
                 need_in = units.mm_to_in(self.need(crop)["central"])
                 lb = max(0.0, need_in - float(s["water.wheat_threshold_in"])) * float(s["water.wheat_bu_per_in"]) * 60
@@ -239,9 +293,10 @@ class FieldModel:
                 if crop.water_need["basis"].assumed:
                     extra = [Assumed(f"yield:{crop.id}", f"{crop.name} yield from the wheat water relationship "
                                                          "(assumed to apply to it).")]
-                out = ExpectedYield(units.lb_ac_to_kg_ha(lb), "water_relationship", extra)
-            else:
-                out = ExpectedYield(reg["kg_ha"], "regional_wetter", assumed)
+                out = ExpectedYield(units.lb_ac_to_kg_ha(lb), "water_relationship", extra, zone)
+            else:  # the nearest wetter zone's figure
+                kg = zones.get("transition") if zone == "grain_fallow" and "transition" in zones else reg["kg_ha"]
+                out = ExpectedYield(kg, "regional_wetter", assumed, zone)
         self._cache[key] = out
         return out
 
@@ -379,7 +434,7 @@ def water_measure(crops: list[Crop], fm: FieldModel) -> Quantity:
             "need_mm": fm.need(c)["central"], "median_supply_mm": float(np.median(sup[win_mask])),
             "short_years": int(short[win_mask].sum()), "years": win_n,
             "need_method": c.water_need["method"],
-            "need_reference": fm.reference_kinds(c.id) if c.water_need["method"] == "self_calibrated" else None,
+            "need_reference": fm.reference_kinds(c.id),
         })
         if hl_idx.size:
             j = int(hl_idx[0])
@@ -449,7 +504,8 @@ def soil_measure(crops: list[Crop], fm: FieldModel) -> Quantity:
     for c in crops:
         if c.residue and c.residue.get("method") in ("linear_kg_ha", "harvest_index"):
             y = fm.expected_yield(c)
-            yields[c.name] = {"kg_ha": y.kg_ha, "tag": y.tag, "text": y.text}
+            yields[c.name] = {"kg_ha": y.kg_ha, "tag": y.tag, "text": y.text,
+                              "borrowed_from": list(y.level.borrowed_from) if y.level is not None else []}
     return Quantity("soil", lo, ce, hi, True, "kg_ha", _uniq(assumed), details={
         "winters": [{k: v for k, v in w.items() if k != "assumed"} for w in winters],
         "weakest": [w["after_position"] for w in weakest],
@@ -476,7 +532,8 @@ def legume_credit(crop: Crop, fm: FieldModel) -> tuple[tuple[float, float, float
         return (nc["low_kg_ha"], (nc["low_kg_ha"] + nc["high_kg_ha"]) / 2, nc["high_kg_ha"]), assumed, info
     y = fm.expected_yield(crop)
     assumed += y.assumed
-    info = {"yield_kg_ha": y.kg_ha, "yield_tag": y.tag, "yield_text": y.text}
+    info = {"yield_kg_ha": y.kg_ha, "yield_tag": y.tag, "yield_text": y.text,
+            "borrowed_from": list(y.level.borrowed_from) if y.level is not None else []}
     if y.kg_ha is None:
         return (float("nan"),) * 3, assumed, info
     for t in nc["tiers"]:

@@ -8,7 +8,7 @@ import json
 import logging
 from pathlib import Path
 
-from fastapi import Body, FastAPI, HTTPException, Query, Response
+from fastapi import Body, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -209,6 +209,87 @@ def strategies(field_id: str, inputs: str | None = None, corrections: str | None
     if plan_length and "plan_length" not in raw:
         raw["plan_length"] = plan_length
     return _section(get_service().strategies, _load_field(field_id), raw)
+
+
+# ---- the farmer's records (brief 3, part B) ------------------------------------------------
+@app.get("/api/field/{field_id}/records_template.xlsx")
+def records_template(field_id: str, corrections: str | None = None):
+    data = get_service().records_template(_load_field(field_id), _corrections(corrections))
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": 'attachment; filename="harvest-records.xlsx"'})
+
+
+@app.post("/api/field/{field_id}/records/read")
+async def records_read(field_id: str, request: Request, name: str = Query("", max_length=200),
+                       columns: str | None = None):
+    """Read an uploaded .xlsx or .csv for the preview. Values only; the file is discarded after reading."""
+    from .core.records import MAX_FILE_BYTES, FileRefused
+    f = _load_field(field_id)
+    data = b""
+    async for chunk in request.stream():
+        data += chunk
+        if len(data) > MAX_FILE_BYTES:
+            _error(413, f"The file is larger than {MAX_FILE_BYTES // 1000} KB; a harvest table is much smaller.")
+    cols = None
+    if columns:
+        try:
+            cols = {k: (int(v) if v not in (None, "") else None) for k, v in json.loads(columns).items()
+                    if k in ("year", "crop", "harvest", "unit", "basis")}
+        except (ValueError, TypeError, AttributeError):
+            _error(400, "columns must be a JSON object of column numbers.")
+    try:
+        return get_service().read_records(f, name, data, cols)
+    except FileRefused as exc:
+        _error(422, f"This file was not read: {exc}")
+
+
+@app.post("/api/field/{field_id}/records/check")
+def records_check(field_id: str, body: dict = Body(...)):
+    return get_service().check_records(_load_field(field_id), body.get("rows") or [])
+
+
+@app.get("/api/field/{field_id}/example_records")
+def example_records(field_id: str, corrections: str | None = None):
+    return _section(get_service().example_records, _load_field(field_id), _corrections(corrections))
+
+
+# ---- this year so far (brief 3, part D) ------------------------------------------------------
+@app.get("/api/field/{field_id}/season")
+def season(field_id: str, inputs: str | None = None, date: str | None = None):
+    import datetime as _dt
+    raw = {}
+    if inputs:
+        try:
+            raw = json.loads(inputs)
+        except json.JSONDecodeError:
+            _error(400, "inputs must be JSON.")
+    as_of = None
+    if date:
+        try:
+            as_of = _dt.date.fromisoformat(date)
+        except ValueError:
+            _error(400, "date must be YYYY-MM-DD.")
+        if as_of >= get_service().today:
+            _error(400, "A replay date must be in the past.")
+    return _section(get_service().season, _load_field(field_id), raw if isinstance(raw, dict) else {}, as_of)
+
+
+@app.get("/api/field/{field_id}/season_replay")
+def season_replay(field_id: str):
+    return _section(get_service().season_replay, _load_field(field_id))
+
+
+@app.get("/api/field/{field_id}/enso")
+def enso(field_id: str):
+    return _section(get_service().enso, _load_field(field_id))
+
+
+@app.get("/api/validation")
+def validation():
+    p = DATA_DIR / "validation.json"
+    if not p.exists():
+        _error(404, "The validation has not been run yet (backend/tools/validate.py).")
+    return json.loads(p.read_text())
 
 
 @app.get("/api/region/context")

@@ -270,13 +270,13 @@ def test_strategies_respect_inputs(long_service):
     st4 = service.strategies(f, {"dry_mode": True, "priorities": ["variety", "water"]})
     assert [p["id"] for p in st4["priorities"]][0] == "water"  # dry region mode puts water first
     assert len(st4["looking_back"]["window_years"]) == 5
-    assert any("Dry region mode is on" in h for h in st4["headline"])
+    assert any("Dry region mode is on" in h for h in st4["settings_notes"])
     st5 = service.strategies(f, {"ph": 5.0, "tillage": "no_till", "rain_pct": -30, "temp_f": 5,
                                  "yields": {"winter_wheat": 70}, "nonsense": 1})
     assert st5["inputs"]["ph"]["source"] == "farmer" and st5["inputs"]["tillage"]["value"] == "no_till"
     keys = {c["key"] for o in [st5["current"]] + st5["options"] for c in o["cautions"]}
     assert "W4u" not in keys  # pH is known now
-    assert any("Weather changed to" in h for h in st5["headline"])
+    assert any("Weather changed to" in h for h in st5["settings_notes"])
 
 
 def test_distance_alignment_and_canonical(content):
