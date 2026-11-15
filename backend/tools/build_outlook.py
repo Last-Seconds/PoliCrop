@@ -347,6 +347,10 @@ def main():
             "Planetary Computer hosts the original v1.0 files.",
             "Bias correction makes each model's historical climate close to the observation-based reference, "
             "so the baseline describes the reference climate; trust the changes, not small baseline differences.",
+            "The baseline runs warmer than local Daymet: Daymet 1995-2014 gives a mean of about 48 F, 9 June-July "
+            "hot days and 5.9 in April-July rain near Pullman, and 51 F, 17-18 hot days and 4.0 in near LaCrosse "
+            "(checked 2026-11-15). Do not show the baseline next to Daymet as if they were the same measure; show "
+            "the changes.",
             "The models disagree on rain. This outlook is a separate panel and never feeds the strategy scoring.",
         ],
     }

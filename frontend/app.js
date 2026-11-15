@@ -1003,15 +1003,15 @@
       const sm = ctx && ctx.soil_moisture;
       if (sm && sm.text) {
         const box = el("div", {});
-        $("#about-region").append(el("h3", {}, "Topsoil moisture from space, May to July"), el("p", {}, sm.text), box,
+        $("#about-region").append(el("h3", {}, "Topsoil moisture from space, May to July"), el("p", {}, sm.text, " ▼ marks 2021, the driest and hottest year on record."), box,
           el("p", { class: "small muted" }, `${sm.source}. ${sm.note}`));
         const ys = sm.years.filter((y) => y.mean != null);
         makeChart("soilMoisture", box, {
           _label: "May to July topsoil moisture per year",
           type: "bar",
-          data: { labels: ys.map((y) => (y.year === 2021 ? "2021 (driest, hottest)" : String(y.year))), datasets: [{ data: ys.map((y) => +(y.mean * 100).toFixed(1)),
+          data: { labels: ys.map((y) => (y.year === 2021 ? "2021 ▼" : String(y.year))), datasets: [{ data: ys.map((y) => +(y.mean * 100).toFixed(1)),
             backgroundColor: ys.map((y) => (y.year === 2021 ? css("--series-hl") : css("--series-rain"))), borderRadius: 3 }] },
-          options: { scales: { y: { beginAtZero: true, title: { display: true, text: "% water by volume (top 2 in)" } }, x: { grid: { display: false } } },
+          options: { scales: { y: { beginAtZero: true, title: { display: true, text: "% water" } }, x: { grid: { display: false } } },
             plugins: { tooltip: { callbacks: { label: (it) => `${it.raw}% water by volume` } } } },
         }, "short");
       }
@@ -1036,9 +1036,12 @@
     const box = $("#about-outlook");
     if (!o || !o.rows) { box.replaceChildren(el("p", { class: "muted" }, "The 2050 outlook has not been prepared for this area yet.")); return; }
     box.replaceChildren(el("p", {}, o.intro),
-      table(o.columns, o.rows),
+      ...o.rows.map((r) => el("div", { class: "scenario" }, el("h4", {}, r[0]),
+        el("ul", {}, o.columns.slice(1).map((c, i) => el("li", {}, el("strong", {}, `${c}: `), r[i + 1]))))),
       ...o.notes.map((t) => el("p", { class: "small" }, t)),
-      el("p", {}, o.studies_text, " ", el("a", { href: o.studies_url, target: "_blank", rel: "noopener" }, "Washington State University summary (2018)"), "."));
+      el("p", {}, o.studies_text, " ", el("a", { href: o.studies_url, target: "_blank", rel: "noopener" }, "Washington State University summary (2018)"), "."),
+      o.method_notes && o.method_notes.length ? el("details", {}, el("summary", { class: "small" }, "How this was worked out"),
+        el("ul", { class: "small" }, o.method_notes.map((t) => el("li", {}, t)))) : null);
   }
 
   function basisTag(b) { return el("span", { class: `basis ${b}` }, b); }

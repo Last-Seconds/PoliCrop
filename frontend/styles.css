@@ -307,3 +307,6 @@ a { color: var(--accent); }
 .pick-result .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .field-notes { margin: 4px 0 0; padding-left: 18px; font-size: .84rem; color: var(--muted); }
 .field-notes:empty { display: none; }
+.scenario { background: var(--surface-2); border-radius: 8px; padding: 8px 12px; }
+.scenario h4 { margin: 0 0 4px; font-size: .92rem; }
+.scenario ul { margin: 0; padding-left: 18px; font-size: .9rem; }

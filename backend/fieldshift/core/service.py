@@ -602,6 +602,18 @@ class FieldService:
                  rng(v.get("hot_days_change"), sign, " days"), rng(v.get("mean_temp_change_f"), sign1, " °F")]
                 for k, v in sc.items()]
         h, m = o.get("historical", ["?", "?"]), o.get("mid_century", ["?", "?"])
+        agree = []
+        for k, v in sc.items():
+            pm = [r.get("apr_jul_precip_change_pct") for r in v.get("per_model", []) if isinstance(r, dict)]
+            pm = [x for x in pm if isinstance(x, (int, float))]
+            if pm:
+                agree.append(f"{names.get(k, k).split(' (')[0].lower()}: {sum(x > 0 for x in pm)} of {len(pm)} models "
+                             f"wetter in April–July, {sum(x < 0 for x in pm)} drier")
+        all_warm = bool(sc) and all((v.get("mean_temp_change_f") or {}).get("min", 0) > 0 and
+                                    (v.get("hot_days_change") or {}).get("min", 0) > 0 for v in sc.values())
+        agree_text = ("The models disagree about spring rain (" + "; ".join(agree) + ")"
+                      + (", but every one of them warms the county and adds hot summer days." if all_warm else ".")
+                      ) if agree else None
         models = o.get("models") or []
         return {
             "status": "ok",
@@ -610,10 +622,13 @@ class FieldService:
                       "shown, with the range across them in brackets. The models disagree, especially about rain."),
             "columns": ["Scenario", "April–July rain and snow", f"June–July days at or above 90 °F", "Mean temperature"],
             "rows": rows,
-            "notes": [f"Models used ({len(models)}): {', '.join(models)}.",
-                      f"Source: {o.get('source', 'NASA NEX-GDDP-CMIP6')}, prepared {o.get('generated', '?')}.",
-                      "This outlook is shown for context only. It never changes how options are judged: they are "
-                      "judged on the weather that actually happened.", *o.get("notes", [])],
+            "notes": [*([agree_text] if agree_text else []),
+                      "Shown for context only. It never changes how options are judged: they are judged on the "
+                      "weather that actually happened.",
+                      f"Models used ({len(models)}): {', '.join(models)}. Source: NASA NEX-GDDP-CMIP6 daily "
+                      f"projections, prepared {o.get('generated', '?')}."],
+            "method_notes": [n.replace("precipitation", "rain and snow").replace("Precipitation", "Rain and snow")
+                             for n in o.get("notes", [])],
             "studies_text": ("What this means for fallow is unsettled: two published studies of this region drew "
                              "opposite conclusions. One projected that more fallow would be needed; the other, that "
                              "yields would rise and fallow would decrease."),
