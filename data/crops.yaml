@@ -1,0 +1,326 @@
+# Crop table, filled from BUILD_BRIEF_2.md Appendix A. Sources [S1]..[S26] are
+# listed in docs/CROP_TABLE_DRAFT.md (and in data/sources.yaml for the app).
+#
+# The app reads this file at start-up; no code change is needed to edit it.
+# PROVISIONAL MODEL CONTENT: designed from sourced figures, not yet reviewed by
+# anyone with farming expertise.
+#
+# Every agronomic value carries:
+#   basis   sourced | derived | assumed   (see the brief, section 2)
+#   source  source id(s), e.g. S24 or "S15, S17"   (required unless assumed)
+#   note    optional free text
+# Units are in field names: _in inches, _lb_ac pounds per acre, _kg_ha kilograms
+# per hectare, _f degrees Fahrenheit. The loader converts to internal units.
+#
+# Schema (per crop):
+#   id, name, aliases       ids (aliases: older ids still accepted in saved corrections)
+#   class_codes             classification system -> codes used for the crop history
+#   pool_codes              codes whose presence nearby makes this crop available
+#                           (default: class_codes). Winter peas and winter canola use
+#                           the map's peas / canola class, which cannot tell winter from spring.
+#   role                    a role id in roles.yaml
+#   generate                false = recognised in history only, never offered
+#   pool                    if_grown_nearby (default) | always
+#   plant_type              grass | broadleaf | none
+#   sown                    autumn | spring | none
+#   sowing_window, harvest_window   {start: MM-DD, end: MM-DD, basis, source}
+#                           "most active" ranges; rule H2 uses sowing end and harvest end
+#   water_need              {method: self_calibrated}: the median supply the crop gets on this
+#                           field in its reference position (brief 3, S1: every crop, not only cereals)
+#   water_use               {use_in} | {method: from_yield, seed_lb_ac_per_in: {low, high}}  optional sourced seasonal water use; no longer a need. It drives
+#                           the "may be too dry here" caution (W10): shown when the crop's median
+#                           supply here is under use_in + water.short_threshold_in
+#   root_zone               {value: 0_100cm | 0_150cm}  soil depth whose storage the crop can use
+#   growing_season          {value: <season id in settings water.growing_seasons>}
+#   regional_yield          {value_lb_ac}  2011–2015 averages, >= 18 in precipitation part of the region
+#   zone_yields             {transition_lb_ac, grain_fallow_lb_ac, transition_after_crop: {value_lb_ac, basis}}
+#                           typical yields outside the Annual Crop zone [S27] (addendum item 1); a missing
+#                           zone falls back as brief 2 did (cereals: water-implied; others: nearest wetter zone)
+#   yield_unit              {name, lb_per_unit}  how a farmer states a yield for this crop
+#   residue                 {method: linear_kg_ha, slope, intercept_kg_ha}
+#                           | {method: range_lb_ac, low_lb_ac, high_lb_ac}
+#                           | {method: harvest_index, h_low, h_high}  residue = yield × (1 − h) / h
+#                           | {method: none}
+#   nitrogen_credit         {method: tiers_by_yield, tiers: [{below_lb_ac, credit_lb_ac}, ..., {credit_lb_ac}]}
+#                           | {method: fixed, credit_lb_ac} | {method: range, low_lb_ac, high_lb_ac}
+#   critical_ph             {low, high} (W4); null = none known
+#   income                  {return_usd_ac, label}  2011–2015 regional averages [S18]
+#   limits                  free-text limits shown in the details
+provisional: true
+
+crops:
+  # ---------------------------------------------------------------- cereals
+  - id: winter_wheat
+    name: Winter wheat
+    class_codes: {us_cdl: [24]}
+    role: cereal
+    plant_type: grass
+    sown: autumn
+    sowing_window: {start: "09-01", end: "10-10", basis: sourced, source: S24}
+    harvest_window: {start: "07-25", end: "08-20", basis: sourced, source: S24}
+    water_need: {method: self_calibrated, basis: sourced, source: S7,
+                 note: "Median supply this crop gets on this field in its reference position (brief 6.2)."}
+    root_zone: {value: 0_150cm, basis: sourced, source: S7, note: "Wheat draws water from 6 ft."}
+    growing_season: {value: apr_jun, basis: sourced, source: S7}
+    regional_yield: {value_lb_ac: 4800, basis: sourced, source: S18, note: "80 bu/ac"}
+    zone_yields:
+      transition_lb_ac: 4680
+      grain_fallow_lb_ac: 2700
+      basis: sourced
+      source: S27
+      note: "Tables 5-12 to 5-14 and 5-A2; 78 bu/ac after fallow (Transition), 45 bu/ac (Grain-Fallow)."
+      transition_after_crop:
+        value_lb_ac: 2100
+        basis: assumed
+        note: "35 bu/ac: the source's unlabelled second figure (30–40 bu/ac), taken as wheat after a harvested crop"
+    yield_unit: {name: bu, lb_per_unit: 60}
+    residue: {method: linear_kg_ha, slope: 1.1274, intercept_kg_ha: 1175, basis: sourced, source: S9}
+    nitrogen_credit: null
+    critical_ph: {low: 5.2, high: 5.4, basis: sourced, source: S13}
+    income: {return_usd_ac: 64, label: Soft white winter wheat, basis: sourced, source: S18}
+
+  - id: spring_wheat
+    name: Spring wheat
+    class_codes: {us_cdl: [23]}
+    role: cereal
+    plant_type: grass
+    sown: spring
+    sowing_window: {start: "03-25", end: "04-30", basis: sourced, source: S24}
+    harvest_window: {start: "08-01", end: "08-30", basis: sourced, source: S24}
+    water_need: {method: self_calibrated, basis: sourced, source: S7}
+    root_zone: {value: 0_150cm, basis: sourced, source: S7}
+    growing_season: {value: apr_jun, basis: sourced, source: S7}
+    regional_yield: {value_lb_ac: 3480, basis: sourced, source: S18, note: "58 bu/ac"}
+    zone_yields: {transition_lb_ac: 3000, grain_fallow_lb_ac: 2400, basis: sourced, source: S27, note: "Tables 5-12 to 5-14 and 5-A2."}
+    yield_unit: {name: bu, lb_per_unit: 60}
+    residue: {method: linear_kg_ha, slope: 0.8613, intercept_kg_ha: 2068, basis: sourced, source: S9}
+    nitrogen_credit: null
+    critical_ph: {low: 5.2, high: 5.4, basis: sourced, source: S13}
+    income: {return_usd_ac: 27, label: Soft white spring wheat, basis: sourced, source: S18}
+
+  - id: spring_barley
+    name: Spring barley
+    aliases: [barley]
+    class_codes: {us_cdl: [21]}
+    role: cereal
+    plant_type: grass
+    sown: spring
+    sowing_window: {start: "03-30", end: "05-05", basis: sourced, source: S24}
+    harvest_window: {start: "08-01", end: "08-30", basis: sourced, source: S24}
+    water_need: {method: self_calibrated, basis: assumed, note: "As wheat: [S7] studied wheat only."}
+    root_zone: {value: 0_150cm, basis: assumed, note: "As wheat."}
+    growing_season: {value: apr_jun, basis: sourced, source: S7}
+    regional_yield: {value_lb_ac: 3000, basis: sourced, source: S18, note: "1.5 tons/ac"}
+    zone_yields: {transition_lb_ac: 3000, grain_fallow_lb_ac: 1900, basis: sourced, source: S27, note: "Tables 5-12 to 5-14 and 5-A2."}
+    yield_unit: {name: tons, lb_per_unit: 2000}
+    residue: {method: linear_kg_ha, slope: 0.7013, intercept_kg_ha: 1303, basis: sourced, source: S9}
+    nitrogen_credit: null
+    critical_ph: {low: 5.2, high: 5.2, basis: sourced, source: S13}
+    income: {return_usd_ac: -24, label: Spring barley, basis: sourced, source: S18}
+
+  # ---------------------------------------------------------------- legumes
+  - id: spring_peas
+    name: Spring peas
+    aliases: [peas]
+    class_codes: {us_cdl: [53]}
+    role: legume
+    plant_type: broadleaf
+    sown: spring
+    sowing_window: {start: "04-10", end: "05-15", basis: sourced, source: S24}
+    harvest_window: {start: "07-20", end: "08-20", basis: sourced, source: S24}
+    water_need: {method: self_calibrated, basis: assumed, note: "As cereals (brief 3, S1)."}
+    water_use: {use_in: 9.3, basis: sourced, source: S3,
+                note: "Pendleton, Oregon, 1983–84, wetter-than-average years."}
+    root_zone: {value: 0_100cm, basis: sourced, source: "S2, S3, S16", note: "Legume roots are shallower."}
+    growing_season: {value: apr_jul, basis: assumed, note: "From the harvest dates."}
+    regional_yield: {value_lb_ac: 1700, basis: sourced, source: S18}
+    zone_yields: {transition_lb_ac: 1600, basis: sourced, source: S27, note: "Tables 5-12 to 5-14 and 5-A2."}
+    yield_unit: {name: lb, lb_per_unit: 1}
+    residue: {method: range_lb_ac, low_lb_ac: 1500, high_lb_ac: 2000, basis: sourced, source: S8}
+    nitrogen_credit:
+      method: tiers_by_yield
+      tiers: [{below_lb_ac: 1500, credit_lb_ac: 10}, {below_lb_ac: 2500, credit_lb_ac: 15}, {credit_lb_ac: 20}]
+      basis: sourced
+      source: S11
+    critical_ph: {low: 5.5, high: 5.5, basis: sourced, source: S13}
+    income: {return_usd_ac: -7, label: Peas, basis: sourced, source: S18}
+    limits:
+      - {text: "Dies after 24–48 hours of waterlogging.", source: S2}
+
+  - id: winter_peas
+    name: Winter peas
+    class_codes: {}
+    pool_codes: {us_cdl: [53]}
+    role: legume
+    plant_type: broadleaf
+    sown: autumn
+    sowing_window: {start: "08-25", end: "09-07", basis: sourced, source: S4, note: "From a drier site (Ritzville)."}
+    harvest_window: {start: "07-01", end: "07-15", basis: sourced, source: S4, note: "From a drier site (Ritzville)."}
+    water_need: {method: self_calibrated, basis: assumed,
+                 note: "As cereals (brief 3, S1). Brief 2 used winter wheat's need less 1.2 in [S4]."}
+    root_zone: {value: 0_100cm, basis: sourced, source: "S2, S3, S16"}
+    growing_season: {value: apr_jun, basis: sourced, source: S7, note: "Winter crops: April to June."}
+    regional_yield: {value_lb_ac: 2000, basis: sourced, source: S18,
+                     note: "As given in Appendix A of the brief; not in the crop table draft's yield table."}
+    zone_yields: {grain_fallow_lb_ac: 1500, basis: sourced, source: S27, note: "Tables 5-12 to 5-14 and 5-A2."}
+    yield_unit: {name: lb, lb_per_unit: 1}
+    residue: {method: linear_kg_ha, slope: 1.3427, intercept_kg_ha: 1327, basis: sourced, source: S9,
+              note: "Austrian winter pea relationship."}
+    nitrogen_credit:
+      method: tiers_by_yield
+      tiers: [{below_lb_ac: 1500, credit_lb_ac: 10}, {below_lb_ac: 2500, credit_lb_ac: 15},
+              {below_lb_ac: 3750, credit_lb_ac: 20}, {credit_lb_ac: 30}]
+      basis: assumed
+      note: "30 lb N/ac above 3,750 lb/ac is sourced [S27, Table 5-9]; below that, the spring pea tiers [S11], assumed (addendum item 2)."
+    critical_ph: {low: 5.5, high: 5.5, basis: assumed, note: "The source lists spring peas."}
+    income: null
+    limits:
+      - {text: "Winter hardiness depends on the variety: from −5 °F ('Lynx') to +10 °F (Austrian winter pea).", source: S27}
+
+  - id: lentils
+    name: Lentils
+    class_codes: {us_cdl: [52]}
+    role: legume
+    plant_type: broadleaf
+    sown: spring
+    sowing_window: {start: "04-10", end: "04-30", basis: assumed,
+                    note: "From \"early spring; after April lowers yield\" [S2]."}
+    harvest_window: {start: "08-01", end: "08-31", basis: sourced, source: S2}
+    water_need: {method: self_calibrated, basis: assumed, note: "As cereals (brief 3, S1)."}
+    water_use: {use_in: 9.7, basis: sourced, source: S3}
+    root_zone: {value: 0_100cm, basis: sourced, source: "S2, S3, S16"}
+    growing_season: {value: apr_jul, basis: assumed, note: "From the harvest dates."}
+    regional_yield: {value_lb_ac: 1100, basis: sourced, source: S18}
+    zone_yields: {transition_lb_ac: 1200, basis: sourced, source: S27, note: "Tables 5-12 to 5-14 and 5-A2."}
+    yield_unit: {name: lb, lb_per_unit: 1}
+    residue: {method: range_lb_ac, low_lb_ac: 1500, high_lb_ac: 2000, basis: sourced, source: S8}
+    nitrogen_credit: {method: fixed, credit_lb_ac: 10, basis: sourced, source: S11}
+    critical_ph: {low: 5.7, high: 5.7, basis: sourced, source: S13}
+    income: {return_usd_ac: 18, label: Lentils, basis: sourced, source: S18,
+             note: "The source's table gives $18; its text says $29."}
+
+  - id: chickpeas
+    name: Chickpeas
+    class_codes: {us_cdl: [51]}
+    role: legume
+    plant_type: broadleaf
+    sown: spring
+    sowing_window: {start: "04-01", end: "04-30", basis: assumed,
+                    note: "Month sourced [S15]; window bounds assumed."}
+    harvest_window: {start: "07-25", end: "08-31", basis: assumed,
+                     note: "Month sourced [S15]; bounds assumed around two observed harvests (28 Jul, 18 Aug)."}
+    water_need: {method: self_calibrated, basis: assumed, note: "As cereals (brief 3, S1)."}
+    water_use: {use_in: 9.8, basis: sourced, source: S3}
+    root_zone: {value: 0_100cm, basis: sourced, source: "S2, S3, S16"}
+    growing_season: {value: apr_jul, basis: assumed, note: "From the harvest dates."}
+    regional_yield: {value_lb_ac: 1200, basis: sourced, source: S18}
+    yield_unit: {name: lb, lb_per_unit: 1}
+    residue: {method: range_lb_ac, low_lb_ac: 1500, high_lb_ac: 2000, basis: assumed, note: "As peas and lentils."}
+    nitrogen_credit:
+      method: tiers_by_yield
+      tiers: [{below_lb_ac: 2000, credit_lb_ac: 10}, {credit_lb_ac: 15}]
+      basis: sourced
+      source: S27
+      note: "15 lb N/ac above 2,000 lb/ac is sourced (Table 5-9); 10 lb N/ac below that is assumed (addendum item 2)."
+    critical_ph: null
+    income: {return_usd_ac: 63, label: Chickpeas, basis: sourced, source: S18}
+    limits:
+      - {text: "Stressed at or above 98 °F in early flowering and pod fill.", source: S16}
+      - {text: "Once in 3 to 5 years on the same field; 4 to 5 where Fusarium wilt is present.", source: S3}
+
+  # ---------------------------------------------------------------- oilseeds
+  - id: spring_canola
+    name: Spring canola
+    aliases: [canola]
+    class_codes: {us_cdl: [31]}
+    role: oilseed
+    plant_type: broadleaf
+    sown: spring
+    sowing_window: {start: "04-01", end: "05-10", basis: sourced, source: "S15, S17, S26"}
+    harvest_window: {start: "08-01", end: "08-31", basis: sourced, source: "S15, S17, S26"}
+    water_need: {method: self_calibrated, basis: assumed, note: "As cereals (brief 3, S1)."}
+    water_use: {method: from_yield, seed_lb_ac_per_in: {low: 65, high: 105}, basis: derived, source: S28,
+                note: "Expected yield ÷ 105 lb seed per acre per inch (range to ÷ 65), winter canola trials \"similar to spring canola in the area\" (addendum item 4)."}
+    root_zone: {value: 0_150cm, basis: sourced, source: S19, note: "Canola roots reach 46–65 in."}
+    growing_season: {value: apr_jul, basis: assumed, note: "From the harvest dates."}
+    regional_yield: {value_lb_ac: 1500, basis: sourced, source: S18}
+    zone_yields: {transition_lb_ac: 1500, grain_fallow_lb_ac: 500, basis: sourced, source: S27, note: "Tables 5-12 to 5-14 and 5-A2."}
+    yield_unit: {name: lb, lb_per_unit: 1}
+    residue: {method: harvest_index, h_low: 0.20, h_high: 0.35, basis: derived, source: S19,
+              note: "Seed is 20–35% of above-ground dry matter."}
+    nitrogen_credit: null
+    critical_ph: {low: 5.5, high: 5.5, basis: sourced, source: S13}
+    income: {return_usd_ac: -35, label: Spring canola, basis: sourced, source: S18}
+    limits:
+      - {text: "Uncommon under 12 in of rain and snow a year.", source: S25}
+
+  - id: winter_canola
+    name: Winter canola
+    class_codes: {}
+    pool_codes: {us_cdl: [31]}
+    role: oilseed
+    plant_type: broadleaf
+    sown: autumn
+    sowing_window: {start: "08-01", end: "09-15", basis: sourced, source: S5}
+    harvest_window: {start: "07-15", end: "08-15", basis: assumed, note: "As winter wheat."}
+    water_need: {method: self_calibrated, basis: sourced, source: S27,
+                 note: "Grouped with winter wheat for water use (Table 5-A3)."}
+    water_use: {method: from_yield, seed_lb_ac_per_in: {low: 65, high: 105}, basis: derived, source: S28,
+                note: "Expected yield ÷ 105 lb seed per acre per inch (range to ÷ 65) (addendum item 4)."}
+    root_zone: {value: 0_150cm, basis: sourced, source: S19}
+    growing_season: {value: apr_jun, basis: sourced, source: S7, note: "Winter crops: April to June."}
+    regional_yield: {value_lb_ac: 3000, basis: sourced, source: S27, note: "Table 5-A2 (addendum item 1)."}
+    zone_yields: {grain_fallow_lb_ac: 1500, basis: sourced, source: S27, note: "Tables 5-12 to 5-14 and 5-A2."}
+    yield_unit: {name: lb, lb_per_unit: 1}
+    residue: {method: harvest_index, h_low: 0.20, h_high: 0.35, basis: derived, source: S19}
+    nitrogen_credit: null
+    critical_ph: {low: 5.5, high: 5.5, basis: sourced, source: S13}
+    income: null
+    limits:
+      - {text: "Only after fallow: after a harvested crop the soil is too dry for it to establish before winter.",
+         source: S25}
+
+  # ---------------------------------------------------------------- non-harvest years
+  - id: fallow
+    name: Fallow
+    class_codes: {us_cdl: [61]}
+    role: fallow
+    plant_type: none
+    sown: none
+    water_need: null
+    residue: {method: none}
+    note: "Runs about 13 months, from the previous harvest to the next sowing [S6]."
+
+  - id: cover_crop
+    name: Cover crop
+    aliases: []
+    class_codes: {}
+    role: cover_crop
+    pool: always
+    plant_type: none
+    sown: none
+    water_need: null
+    residue: {method: none}
+    note: >-
+      Modelled only as a replacement for a fallow year, the one use with a local
+      water figure [S14]. Which species fit here is not decided.
+
+  # ---------------------------------------------------------------- history only
+  - id: dry_beans
+    name: Dry beans
+    class_codes: {us_cdl: [42]}
+    role: legume
+    generate: false
+    plant_type: broadleaf
+    sown: spring
+    note: >-
+      In Whitman County the crop map shows large "Dry Beans" areas in years before
+      chickpeas (code 51) appear regularly; these may be chickpeas. Check locally.
+
+  - id: alfalfa
+    name: Alfalfa
+    class_codes: {us_cdl: [36]}
+    role: forage
+    generate: false
+    plant_type: broadleaf
+    sown: spring

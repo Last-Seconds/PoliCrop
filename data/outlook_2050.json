@@ -1,0 +1,550 @@
+{
+ "generated": "2026-11-15",
+ "source": "NASA NEX-GDDP-CMIP6 (bias-corrected, downscaled CMIP6 daily projections, 0.25 degree), read from the NASA Center for Climate Simulation THREDDS server (https://ds.nccs.nasa.gov/thredds/catalog/AMES/NEX/GDDP-CMIP6/catalog.html) with its NetCDF Subset Service; the same dataset is on Microsoft Planetary Computer as nasa-nex-gddp-cmip6.",
+ "source_url": "https://www.nccs.nasa.gov/services/data-collections/land-based-products/nex-gddp-cmip6",
+ "region": {
+  "name": "Whitman County, Washington, USA",
+  "fips": "53075",
+  "bbox": [
+   -118.2494,
+   46.4168,
+   -117.0394,
+   47.2607
+  ],
+  "outline": "US Census TIGERweb county outline",
+  "grid": "0.25 degree NEX-GDDP-CMIP6 cells; centres listed; weight = share of county area",
+  "cells": [
+   {
+    "lat": 46.375,
+    "lon": -117.125,
+    "weight": 0.0212
+   },
+   {
+    "lat": 46.625,
+    "lon": -118.125,
+    "weight": 0.0593
+   },
+   {
+    "lat": 46.625,
+    "lon": -117.875,
+    "weight": 0.0523
+   },
+   {
+    "lat": 46.625,
+    "lon": -117.625,
+    "weight": 0.0238
+   },
+   {
+    "lat": 46.625,
+    "lon": -117.375,
+    "weight": 0.048
+   },
+   {
+    "lat": 46.625,
+    "lon": -117.125,
+    "weight": 0.0788
+   },
+   {
+    "lat": 46.875,
+    "lon": -118.125,
+    "weight": 0.0063
+   },
+   {
+    "lat": 46.875,
+    "lon": -117.875,
+    "weight": 0.0861
+   },
+   {
+    "lat": 46.875,
+    "lon": -117.625,
+    "weight": 0.0939
+   },
+   {
+    "lat": 46.875,
+    "lon": -117.375,
+    "weight": 0.0939
+   },
+   {
+    "lat": 46.875,
+    "lon": -117.125,
+    "weight": 0.079
+   },
+   {
+    "lat": 47.125,
+    "lon": -117.875,
+    "weight": 0.0785
+   },
+   {
+    "lat": 47.125,
+    "lon": -117.625,
+    "weight": 0.0934
+   },
+   {
+    "lat": 47.125,
+    "lon": -117.375,
+    "weight": 0.0934
+   },
+   {
+    "lat": 47.125,
+    "lon": -117.125,
+    "weight": 0.0786
+   },
+   {
+    "lat": 47.375,
+    "lon": -117.875,
+    "weight": 0.0032
+   },
+   {
+    "lat": 47.375,
+    "lon": -117.625,
+    "weight": 0.0037
+   },
+   {
+    "lat": 47.375,
+    "lon": -117.375,
+    "weight": 0.0036
+   },
+   {
+    "lat": 47.375,
+    "lon": -117.125,
+    "weight": 0.003
+   }
+  ]
+ },
+ "historical": [
+  1995,
+  2014
+ ],
+ "mid_century": [
+  2041,
+  2060
+ ],
+ "years_used": {
+  "historical": [
+   1995,
+   1996,
+   1997,
+   1998,
+   1999,
+   2000,
+   2001,
+   2002,
+   2003,
+   2004,
+   2005,
+   2006,
+   2007,
+   2008,
+   2009,
+   2010,
+   2011,
+   2012,
+   2013,
+   2014
+  ],
+  "mid_century": [
+   2041,
+   2042,
+   2043,
+   2044,
+   2045,
+   2046,
+   2047,
+   2048,
+   2049,
+   2050,
+   2051,
+   2052,
+   2053,
+   2054,
+   2055,
+   2056,
+   2057,
+   2058,
+   2059,
+   2060
+  ]
+ },
+ "models": [
+  "ACCESS-CM2",
+  "CanESM5",
+  "EC-Earth3",
+  "GFDL-ESM4",
+  "INM-CM5-0",
+  "IPSL-CM6A-LR",
+  "MIROC6",
+  "MPI-ESM1-2-HR",
+  "MRI-ESM2-0",
+  "NorESM2-MM"
+ ],
+ "model_runs": {
+  "ACCESS-CM2": "r1i1p1f1",
+  "CanESM5": "r1i1p1f1",
+  "EC-Earth3": "r1i1p1f1",
+  "GFDL-ESM4": "r1i1p1f1",
+  "INM-CM5-0": "r1i1p1f1",
+  "IPSL-CM6A-LR": "r1i1p1f1",
+  "MIROC6": "r1i1p1f1",
+  "MPI-ESM1-2-HR": "r1i1p1f1",
+  "MRI-ESM2-0": "r1i1p1f1",
+  "NorESM2-MM": "r1i1p1f1"
+ },
+ "n_models": 10,
+ "scenarios": {
+  "ssp245": {
+   "apr_jul_precip_change_pct": {
+    "median": 5.42,
+    "min": -16.47,
+    "max": 15.84,
+    "p25": -1.17,
+    "p75": 10.98,
+    "n": 10
+   },
+   "apr_jul_precip_change_in": {
+    "median": 0.24,
+    "min": -0.81,
+    "max": 0.73,
+    "p25": -0.06,
+    "p75": 0.49,
+    "n": 10
+   },
+   "apr_jul_precip_change_mm": {
+    "median": 6.19,
+    "min": -20.49,
+    "max": 18.59,
+    "p25": -1.42,
+    "p75": 12.48,
+    "n": 10
+   },
+   "hot_days_change": {
+    "median": 6.15,
+    "min": 2.37,
+    "max": 14.72,
+    "p25": 4.54,
+    "p75": 9.58,
+    "n": 10
+   },
+   "mean_temp_change_f": {
+    "median": 3.23,
+    "min": 1.91,
+    "max": 5.31,
+    "p25": 2.67,
+    "p75": 4.58,
+    "n": 10
+   },
+   "mean_temp_change_c": {
+    "median": 1.79,
+    "min": 1.06,
+    "max": 2.95,
+    "p25": 1.48,
+    "p75": 2.54,
+    "n": 10
+   },
+   "models_agree_on_precip_sign": {
+    "wetter": 7,
+    "drier": 3,
+    "n": 10
+   },
+   "per_model": [
+    {
+     "model": "ACCESS-CM2",
+     "apr_jul_precip_change_pct": 9.4,
+     "apr_jul_precip_change_in": 0.43,
+     "apr_jul_precip_change_mm": 10.87,
+     "hot_days_change": 14.72,
+     "mean_temp_change_f": 4.56,
+     "mean_temp_change_c": 2.54
+    },
+    {
+     "model": "CanESM5",
+     "apr_jul_precip_change_pct": 11.5,
+     "apr_jul_precip_change_in": 0.51,
+     "apr_jul_precip_change_mm": 13.02,
+     "hot_days_change": 7.94,
+     "mean_temp_change_f": 5.31,
+     "mean_temp_change_c": 2.95
+    },
+    {
+     "model": "EC-Earth3",
+     "apr_jul_precip_change_pct": -2.76,
+     "apr_jul_precip_change_in": -0.14,
+     "apr_jul_precip_change_mm": -3.48,
+     "hot_days_change": 6.48,
+     "mean_temp_change_f": 4.76,
+     "mean_temp_change_c": 2.64
+    },
+    {
+     "model": "GFDL-ESM4",
+     "apr_jul_precip_change_pct": 15.84,
+     "apr_jul_precip_change_in": 0.73,
+     "apr_jul_precip_change_mm": 18.59,
+     "hot_days_change": 3.76,
+     "mean_temp_change_f": 3.15,
+     "mean_temp_change_c": 1.75
+    },
+    {
+     "model": "INM-CM5-0",
+     "apr_jul_precip_change_pct": 3.39,
+     "apr_jul_precip_change_in": 0.15,
+     "apr_jul_precip_change_mm": 3.88,
+     "hot_days_change": 5.82,
+     "mean_temp_change_f": 1.91,
+     "mean_temp_change_c": 1.06
+    },
+    {
+     "model": "IPSL-CM6A-LR",
+     "apr_jul_precip_change_pct": -16.47,
+     "apr_jul_precip_change_in": -0.81,
+     "apr_jul_precip_change_mm": -20.49,
+     "hot_days_change": 10.13,
+     "mean_temp_change_f": 3.31,
+     "mean_temp_change_c": 1.84
+    },
+    {
+     "model": "MIROC6",
+     "apr_jul_precip_change_pct": 7.45,
+     "apr_jul_precip_change_in": 0.33,
+     "apr_jul_precip_change_mm": 8.5,
+     "hot_days_change": 2.37,
+     "mean_temp_change_f": 2.75,
+     "mean_temp_change_c": 1.53
+    },
+    {
+     "model": "MPI-ESM1-2-HR",
+     "apr_jul_precip_change_pct": -1.58,
+     "apr_jul_precip_change_in": -0.08,
+     "apr_jul_precip_change_mm": -1.91,
+     "hot_days_change": 5.1,
+     "mean_temp_change_f": 2.0,
+     "mean_temp_change_c": 1.11
+    },
+    {
+     "model": "MRI-ESM2-0",
+     "apr_jul_precip_change_pct": 0.03,
+     "apr_jul_precip_change_in": 0.0,
+     "apr_jul_precip_change_mm": 0.04,
+     "hot_days_change": 4.35,
+     "mean_temp_change_f": 2.64,
+     "mean_temp_change_c": 1.47
+    },
+    {
+     "model": "NorESM2-MM",
+     "apr_jul_precip_change_pct": 12.34,
+     "apr_jul_precip_change_in": 0.6,
+     "apr_jul_precip_change_mm": 15.22,
+     "hot_days_change": 10.5,
+     "mean_temp_change_f": 4.58,
+     "mean_temp_change_c": 2.54
+    }
+   ]
+  },
+  "ssp585": {
+   "apr_jul_precip_change_pct": {
+    "median": 2.83,
+    "min": -13.88,
+    "max": 21.23,
+    "p25": 1.53,
+    "p75": 4.18,
+    "n": 10
+   },
+   "apr_jul_precip_change_in": {
+    "median": 0.14,
+    "min": -0.68,
+    "max": 0.95,
+    "p25": 0.07,
+    "p75": 0.21,
+    "n": 10
+   },
+   "apr_jul_precip_change_mm": {
+    "median": 3.46,
+    "min": -17.28,
+    "max": 24.02,
+    "p25": 1.76,
+    "p75": 5.22,
+    "n": 10
+   },
+   "hot_days_change": {
+    "median": 10.54,
+    "min": 4.53,
+    "max": 15.35,
+    "p25": 8.67,
+    "p75": 11.72,
+    "n": 10
+   },
+   "mean_temp_change_f": {
+    "median": 4.25,
+    "min": 2.94,
+    "max": 6.73,
+    "p25": 3.52,
+    "p75": 5.55,
+    "n": 10
+   },
+   "mean_temp_change_c": {
+    "median": 2.36,
+    "min": 1.63,
+    "max": 3.74,
+    "p25": 1.96,
+    "p75": 3.08,
+    "n": 10
+   },
+   "models_agree_on_precip_sign": {
+    "wetter": 8,
+    "drier": 2,
+    "n": 10
+   },
+   "per_model": [
+    {
+     "model": "ACCESS-CM2",
+     "apr_jul_precip_change_pct": 1.5,
+     "apr_jul_precip_change_in": 0.07,
+     "apr_jul_precip_change_mm": 1.73,
+     "hot_days_change": 15.35,
+     "mean_temp_change_f": 5.21,
+     "mean_temp_change_c": 2.9
+    },
+    {
+     "model": "CanESM5",
+     "apr_jul_precip_change_pct": 21.23,
+     "apr_jul_precip_change_in": 0.95,
+     "apr_jul_precip_change_mm": 24.02,
+     "hot_days_change": 10.39,
+     "mean_temp_change_f": 6.73,
+     "mean_temp_change_c": 3.74
+    },
+    {
+     "model": "EC-Earth3",
+     "apr_jul_precip_change_pct": 4.46,
+     "apr_jul_precip_change_in": 0.22,
+     "apr_jul_precip_change_mm": 5.62,
+     "hot_days_change": 10.69,
+     "mean_temp_change_f": 5.86,
+     "mean_temp_change_c": 3.26
+    },
+    {
+     "model": "GFDL-ESM4",
+     "apr_jul_precip_change_pct": 4.8,
+     "apr_jul_precip_change_in": 0.22,
+     "apr_jul_precip_change_mm": 5.64,
+     "hot_days_change": 8.8,
+     "mean_temp_change_f": 3.26,
+     "mean_temp_change_c": 1.81
+    },
+    {
+     "model": "INM-CM5-0",
+     "apr_jul_precip_change_pct": 1.62,
+     "apr_jul_precip_change_in": 0.07,
+     "apr_jul_precip_change_mm": 1.85,
+     "hot_days_change": 11.87,
+     "mean_temp_change_f": 3.64,
+     "mean_temp_change_c": 2.02
+    },
+    {
+     "model": "IPSL-CM6A-LR",
+     "apr_jul_precip_change_pct": -13.88,
+     "apr_jul_precip_change_in": -0.68,
+     "apr_jul_precip_change_mm": -17.28,
+     "hot_days_change": 13.5,
+     "mean_temp_change_f": 4.79,
+     "mean_temp_change_c": 2.66
+    },
+    {
+     "model": "MIROC6",
+     "apr_jul_precip_change_pct": -3.28,
+     "apr_jul_precip_change_in": -0.15,
+     "apr_jul_precip_change_mm": -3.74,
+     "hot_days_change": 6.73,
+     "mean_temp_change_f": 3.49,
+     "mean_temp_change_c": 1.94
+    },
+    {
+     "model": "MPI-ESM1-2-HR",
+     "apr_jul_precip_change_pct": 3.19,
+     "apr_jul_precip_change_in": 0.15,
+     "apr_jul_precip_change_mm": 3.87,
+     "hot_days_change": 4.53,
+     "mean_temp_change_f": 2.94,
+     "mean_temp_change_c": 1.63
+    },
+    {
+     "model": "MRI-ESM2-0",
+     "apr_jul_precip_change_pct": 3.34,
+     "apr_jul_precip_change_in": 0.16,
+     "apr_jul_precip_change_mm": 4.01,
+     "hot_days_change": 8.63,
+     "mean_temp_change_f": 3.7,
+     "mean_temp_change_c": 2.06
+    },
+    {
+     "model": "NorESM2-MM",
+     "apr_jul_precip_change_pct": 2.46,
+     "apr_jul_precip_change_in": 0.12,
+     "apr_jul_precip_change_mm": 3.04,
+     "hot_days_change": 11.27,
+     "mean_temp_change_f": 5.66,
+     "mean_temp_change_c": 3.14
+    }
+   ]
+  }
+ },
+ "baseline": {
+  "apr_jul_precip_in": 4.68,
+  "apr_jul_precip_mm": 118.7,
+  "hot_days": 21.8,
+  "mean_temp_f": 52.53,
+  "mean_temp_c": 11.4,
+  "spread": {
+   "apr_jul_precip_in": {
+    "median": 4.68,
+    "min": 4.45,
+    "max": 4.96,
+    "p25": 4.52,
+    "p75": 4.84,
+    "n": 10
+   },
+   "apr_jul_precip_mm": {
+    "median": 118.7,
+    "min": 113.2,
+    "max": 126.1,
+    "p25": 114.7,
+    "p75": 122.9,
+    "n": 10
+   },
+   "hot_days": {
+    "median": 21.8,
+    "min": 19.9,
+    "max": 23.9,
+    "p25": 21.0,
+    "p75": 22.3,
+    "n": 10
+   },
+   "mean_temp_f": {
+    "median": 52.53,
+    "min": 52.07,
+    "max": 52.78,
+    "p25": 52.32,
+    "p75": 52.63,
+    "n": 10
+   },
+   "mean_temp_c": {
+    "median": 11.4,
+    "min": 11.15,
+    "max": 11.54,
+    "p25": 11.29,
+    "p75": 11.46,
+    "n": 10
+   }
+  }
+ },
+ "notes": [
+  "Historical window 1995-2014 (experiment 'historical'); mid-century window 2041-2060 under ssp245 (middle-of-the-road emissions) and ssp585 (high emissions).",
+  "Each change is one model's mid-century mean minus the same model's historical mean; the summary gives the median across models, the middle half (p25-p75) and the full range (min-max).",
+  "April-July precipitation: daily precipitation (kg m-2 s-1 x 86400 = mm/day) averaged over the grid cells with area weights, summed over April-July; percent change is relative to the model's own historical mean. Inches = mm / 25.4.",
+  "Hot days: June-July days with daily maximum temperature at or above 90 F (305.37 K), counted in each grid cell separately and then area-weighted, i.e. the count at a typical spot in the county (not the count of the county-averaged series, which would smooth extremes).",
+  "Mean temperature: annual mean of (daily max + daily min) / 2, area-weighted; changes in F = changes in C x 9/5.",
+  "Grid cells: every 0.25 degree cell overlapping the county outline, weighted by the share of the county it covers (cos-latitude area).",
+  "File versions: the newest version NCCS lists for each file (v1.1 or v2.0 where available); Planetary Computer hosts the original v1.0 files.",
+  "Bias correction makes each model's historical climate close to the observation-based reference, so the baseline describes the reference climate; trust the changes, not small baseline differences.",
+  "The baseline runs warmer than local Daymet: Daymet 1995-2014 gives a mean of about 48 F, 9 June-July hot days and 5.9 in April-July rain near Pullman, and 51 F, 17-18 hot days and 4.0 in near LaCrosse (checked 2026-11-15). Do not show the baseline next to Daymet as if they were the same measure; show the changes.",
+  "The models disagree on rain. This outlook is a separate panel and never feeds the strategy scoring."
+ ]
+}

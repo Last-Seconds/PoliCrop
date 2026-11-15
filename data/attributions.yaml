@@ -1,0 +1,100 @@
+# Data sources and attributions, shown in the app footer. One entry per dataset.
+sources:
+  - id: usda_cdl
+    name: Cropland Data Layer (CDL)
+    provider: USDA National Agricultural Statistics Service
+    used_for: Crop history and crops grown in the area
+    url: https://www.nass.usda.gov/Research_and_Science/Cropland/SARS1a.php
+    licence: Public domain (US Government work)
+    attribution: "USDA National Agricultural Statistics Service Cropland Data Layer. {years}. Published crop-specific data layer. USDA-NASS, Washington, DC."
+  - id: cropscape
+    name: CropScape web service
+    provider: USDA NASS / George Mason University CSISS
+    used_for: CDL files for Whitman County (all years after the Planetary Computer range, and fallback)
+    url: https://nassgeodata.gmu.edu/CropScape/
+    licence: Public domain (US Government work)
+    attribution: "CDL data accessed through CropScape (Han et al., 2012)."
+  - id: planetary_computer
+    name: Microsoft Planetary Computer
+    provider: Microsoft
+    used_for: Hosting of CDL (2008–2021), Sentinel-2 Level-2A and gNATSGO soil rasters
+    url: https://planetarycomputer.microsoft.com/
+    licence: Planetary Computer terms of use; each dataset keeps its own licence
+    attribution: "Data accessed through the Microsoft Planetary Computer."
+  - id: daymet
+    name: Daymet V4 R1 daily surface weather
+    provider: NASA Oak Ridge National Laboratory Distributed Active Archive Center (ORNL DAAC)
+    used_for: Rain, snow and temperature for the field (1 km grid, 1980 to the last full year)
+    url: https://daymet.ornl.gov/
+    licence: Free and open (NASA Earth Science data policy)
+    attribution: "Thornton, M.M., R. Shrestha, Y. Wei, P.E. Thornton, S-C. Kao, and B.E. Wilson. 2022. Daymet: Daily Surface Weather Data on a 1-km Grid for North America, Version 4 R1. ORNL DAAC, Oak Ridge, Tennessee, USA. https://doi.org/10.3334/ORNLDAAC/2129"
+  - id: gnatsgo
+    name: gNATSGO soil rasters
+    provider: USDA Natural Resources Conservation Service
+    used_for: Soil map units on the field and their plant-available water storage
+    url: https://planetarycomputer.microsoft.com/dataset/gnatsgo-rasters
+    licence: Public domain (US Government work)
+    attribution: "Soil Survey Staff. Gridded National Soil Survey Geographic (gNATSGO) Database for the Conterminous United States. USDA-NRCS."
+  - id: sda
+    name: Soil Data Access (SSURGO)
+    provider: USDA Natural Resources Conservation Service
+    used_for: Soil names, drainage class, slope range and erodibility
+    url: https://sdmdataaccess.sc.egov.usda.gov/
+    licence: Public domain (US Government work)
+    attribution: "Soil Survey Staff, Natural Resources Conservation Service, United States Department of Agriculture. Soil Survey Geographic (SSURGO) Database, accessed through Soil Data Access."
+  - id: sentinel2
+    name: Sentinel-2 Level-2A
+    provider: European Space Agency, Copernicus programme
+    used_for: Greenness of the field (a vegetation index)
+    url: https://sentinels.copernicus.eu/
+    licence: Copernicus Sentinel data terms (free, full and open)
+    attribution: "Contains modified Copernicus Sentinel data {years}."
+  - id: tiger
+    name: TIGER/Line county boundaries (TIGERweb)
+    provider: US Census Bureau
+    used_for: Whitman County outline
+    url: https://tigerweb.geo.census.gov/
+    licence: Public domain (US Government work)
+    attribution: "US Census Bureau, TIGER/Line."
+  - id: esri_imagery
+    name: World Imagery basemap
+    provider: Esri
+    used_for: Satellite basemap
+    url: https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9
+    licence: Esri terms of use
+    attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community"
+  - id: acis
+    name: NOAA cooperative weather stations (ACIS)
+    provider: NOAA Regional Climate Centers, Applied Climate Information System
+    used_for: Checking the field's grid weather against the nearest long-record weather station
+    url: https://www.rcc-acis.org/
+    licence: Public domain (US Government data)
+    attribution: "Station data from the NOAA Cooperative Observer Program, accessed through ACIS (NOAA Regional Climate Centers)."
+  - id: modis
+    name: MODIS vegetation index (MOD13Q1 / MYD13Q1 v061)
+    provider: NASA Land Processes DAAC
+    used_for: Greenness of the field each year since 2000
+    url: https://lpdaac.usgs.gov/products/mod13q1v061/
+    licence: Free and open (NASA Earth Science data policy)
+    attribution: "Didan, K. MODIS/Terra and Aqua Vegetation Indices 16-Day L3 Global 250m SIN Grid V061. NASA EOSDIS Land Processes DAAC. Accessed through the Microsoft Planetary Computer."
+  - id: nasadem
+    name: NASADEM elevation
+    provider: NASA JPL
+    used_for: Slope across the field and the slope map
+    url: https://www.earthdata.nasa.gov/esds/competitive-programs/measures/nasadem
+    licence: Free and open (NASA Earth Science data policy)
+    attribution: "NASA JPL. NASADEM Merged DEM Global 1 arc second V001. NASA EOSDIS Land Processes DAAC. Accessed through the Microsoft Planetary Computer."
+  - id: usdm
+    name: US Drought Monitor
+    provider: National Drought Mitigation Center (University of Nebraska–Lincoln), USDA, NOAA
+    used_for: County drought history since 2000
+    url: https://droughtmonitor.unl.edu/
+    licence: Free to use with credit
+    attribution: "The U.S. Drought Monitor is jointly produced by the National Drought Mitigation Center at the University of Nebraska-Lincoln, the United States Department of Agriculture, and the National Oceanic and Atmospheric Administration. Map courtesy of NDMC."
+  - id: crop_casma
+    name: Crop-CASMA (SMAP soil moisture)
+    provider: USDA NASS, NASA, George Mason University
+    used_for: County topsoil moisture each season since 2015, from NASA's SMAP satellite
+    url: https://cloud.csiss.gmu.edu/Crop-CASMA/
+    licence: Public (US Government and university service)
+    attribution: "Crop Condition and Soil Moisture Analytics (Crop-CASMA), USDA NASS / NASA / George Mason University; SMAP soil moisture, NASA."

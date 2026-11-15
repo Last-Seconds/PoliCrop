@@ -1,0 +1,30 @@
+# Borrowing across crops (BUILD_BRIEF_3.md part E). PROVISIONAL MODEL CONTENT.
+#
+# Reference crops: the four most widely grown in the county, one of each kind.
+# Each crop is described on five dimensions; similarity to a reference is the
+# weighted share of dimensions that match. Weights are assumed: with four
+# reference crops they cannot be learned from data. Their order is supported by
+# docs/EXPERIMENTS.md test 4 (spring crops were predicted far better from spring
+# wheat than from winter wheat, whatever their family). Editable settings.
+#
+# Used for exactly two things: the sensitivity of a crop without a measured one,
+# and the level of a crop the farmer has no records for. Never to replace the
+# crop table's fallbacks, never to invent a water need.
+references: [winter_wheat, spring_wheat, chickpeas, spring_canola]
+
+weights:
+  sowing_season: {value: 0.40, basis: assumed}
+  plant_family: {value: 0.25, basis: assumed}
+  root_zone: {value: 0.15, basis: assumed}
+  water_need: {value: 0.10, basis: assumed}
+  harvest_month: {value: 0.10, basis: assumed}
+
+# How each dimension is compared:
+#   sowing_season, plant_family, root_zone: 1 if equal, else 0 (from crops.yaml: sown, role, root_zone)
+#   water_need: 1 − |rank difference| / 4, ranks from the relative water use of crops [S27, Table 5-A3]
+#   harvest_month: 1 − |difference in months of the usual harvest end| / 3, not below 0
+water_use_rank:   # 0 lowest use .. 4 highest [S27, Table 5-A3]
+  value: {spring_peas: 0, winter_peas: 0, lentils: 1, spring_wheat: 2, spring_barley: 2, spring_canola: 2,
+          chickpeas: 3, winter_wheat: 4, winter_canola: 4}
+  basis: sourced
+  source: S27

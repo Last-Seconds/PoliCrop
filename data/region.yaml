@@ -1,0 +1,24 @@
+# The region the app currently serves, and which provider set answers for it.
+id: us-wa-whitman
+name: Whitman County, Washington, USA
+provider_set: us
+fips: "53075"
+# Towns used only to suggest a name for a saved field ("Field near Pullman"). Approximate centres.
+places:
+  - {name: Pullman, lon: -117.180, lat: 46.731}
+  - {name: Colfax, lon: -117.364, lat: 46.880}
+  - {name: Palouse, lon: -117.076, lat: 46.910}
+  - {name: Tekoa, lon: -117.074, lat: 47.227}
+  - {name: Rosalia, lon: -117.370, lat: 47.236}
+  - {name: Oakesdale, lon: -117.245, lat: 47.130}
+  - {name: Garfield, lon: -117.145, lat: 47.010}
+  - {name: Farmington, lon: -117.045, lat: 47.090}
+  - {name: Steptoe, lon: -117.353, lat: 47.000}
+  - {name: St. John, lon: -117.583, lat: 47.092}
+  - {name: Endicott, lon: -117.686, lat: 46.927}
+  - {name: LaCrosse, lon: -117.881, lat: 46.814}
+  - {name: Lamont, lon: -117.905, lat: 47.200}
+  - {name: Malden, lon: -117.473, lat: 47.230}
+  - {name: Albion, lon: -117.250, lat: 46.791}
+  - {name: Colton, lon: -117.129, lat: 46.567}
+  - {name: Uniontown, lon: -117.086, lat: 46.537}

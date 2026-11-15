@@ -1,0 +1,468 @@
+# Named parameters. Every value carries:
+#   value        a number, text, list, mapping, or a range {low, central, high}
+#   unit         unit of the value (US units where the brief states them; the core converts)
+#   basis        sourced | derived | assumed   (BUILD_BRIEF_2.md section 2)
+#   source       source id(s) from docs/CROP_TABLE_DRAFT.md (required for sourced / derived)
+#   description  what it does
+# App settings that are engineering choices, not agronomy, are marked `assumed`
+# and say so in the description. Edit freely; no code change is needed.
+
+field:
+  min_area_ha: {value: 0.5, unit: ha, basis: assumed, description: "App setting: smallest field outline accepted."}
+  max_area_ha: {value: 2000, unit: ha, basis: assumed, description: "App setting: largest field outline accepted."}
+
+field_pick:
+  years: {value: 12, unit: crop-map years, basis: assumed, description: "Tap to pick: how many recent crop-map years the tapped spot's crop sequence covers."}
+  max_mismatch: {value: 1, unit: years, basis: assumed, description: "Tap to pick: a pixel joins the field when its crops differ from the tapped spot's in at most this many years."}
+  inset_m: {value: 20, unit: m, basis: assumed, description: "Tap to pick: the traced outline is pulled in by this much so it stays inside the field edge."}
+  simplify_m: {value: 20, unit: m, basis: assumed, description: "Tap to pick: outline simplification tolerance."}
+  max_window_px: {value: 480, unit: 30 m pixels, basis: assumed, description: "Tap to pick: largest search window around the tap (half-width)."}
+
+crop_history:
+  min_share_confident:
+    value: 0.6
+    unit: fraction of field
+    basis: assumed
+    description: A year is flagged uncertain when its main crop class covers less than this share of the field.
+  min_pixels:
+    value: 4
+    unit: 30 m pixels
+    basis: assumed
+    description: Fewer classified pixels than this inside the field and the year is reported as no data.
+
+rotation:
+  default_plan_length: {value: 3, unit: years, basis: assumed, description: Plan length used when no repeating pattern is found in the crop history.}
+  min_period: {value: 2, unit: years, basis: assumed, description: Shortest rotation length searched for.}
+  max_period: {value: 6, unit: years, basis: assumed, description: Longest rotation length searched for.}
+  history_window_years: {value: 12, unit: years, basis: assumed, description: How many recent years are used to detect the rotation.}
+  period_match_threshold:
+    value: 0.7
+    unit: fraction
+    basis: assumed
+    description: Share of years whose crop role repeats after N years needed to call N the rotation length.
+
+crop_pool:
+  radius_km: {value: 10, unit: km, basis: assumed, description: Radius around the field used to find the crops grown in the area.}
+  years: {value: 3, unit: years, basis: assumed, description: Number of most recent crop-map years used for the crop pool.}
+  min_share:
+    value: 0.005
+    unit: fraction of cropland
+    basis: assumed
+    description: A crop must cover at least this share of the surrounding cropland to enter the pool.
+
+vegetation:
+  years: {value: 7, unit: years, basis: assumed, description: Number of most recent years of Sentinel-2 imagery read for the field.}
+  bare_ndvi_threshold:
+    value: 0.25
+    unit: greenness (0 bare soil to about 0.8 dense crop)
+    basis: assumed
+    description: Below this greenness the field is treated as bare (nothing growing).
+  min_bare_observations: {value: 2, unit: images, basis: assumed, description: Consecutive below-threshold images needed to call a bare period.}
+  max_gap_days:
+    value: 30
+    unit: days
+    basis: assumed
+    description: Longer than this between usable images is shown as a gap, and a bare period is not carried across it.
+  min_valid_fraction:
+    value: 0.6
+    unit: fraction of field
+    basis: assumed
+    description: An image is used only when at least this share of the field is free of cloud, shadow and snow.
+  max_scene_cloud_cover:
+    value: 80
+    unit: percent of scene
+    basis: assumed
+    description: "App setting: scenes cloudier than this overall are skipped before reading."
+  masked_scl_classes:
+    value: [0, 1, 3, 8, 9, 10, 11]
+    unit: Sentinel-2 SCL class
+    basis: sourced
+    source: ESA Sentinel-2 L2A scene classification
+    description: "Scene classes removed before averaging: no data, saturated, cloud shadow, cloud (medium, high), thin cirrus, snow/ice."
+
+climate:
+  frost_threshold_f: {value: 32, unit: °F, basis: sourced, source: definition, description: A frost day is a day whose low is below this.}
+  hot_day_threshold_f: {value: 90, unit: °F, basis: assumed, description: "A hot day for the evidence charts (June–July days at or above this), as in docs/DATA_SOURCES.md."}
+  crop_year_start_month:
+    value: 9
+    unit: month
+    basis: sourced
+    source: S7
+    description: Crop years run from 1 September to 31 August and are labelled by the harvest year, as the crop map is.
+  min_complete_fraction:
+    value: 1.0
+    unit: fraction of days
+    basis: assumed
+    description: A month or year is used in averages only if this share of its days have data.
+  trend_periods:
+    value: [[1982, 1996], [1997, 2011], [2012, 2025]]
+    unit: crop years
+    basis: assumed
+    description: The three periods compared in the rain-and-heat evidence, as in docs/DATA_SOURCES.md.
+
+# ---------------------------------------------------------------- the water budget (brief 6.2)
+water:
+  replay_first_year: {value: 1982, unit: crop year, basis: assumed, description: First past crop year looked back over (needs fallow-period weather from August 1980).}
+  recent_years: {value: 15, unit: crop years, basis: assumed, description: "\"Recent\" means the last this-many crop years looked back over (2011 to 2025)."}
+  highlight_year: {value: 2021, unit: crop year, basis: sourced, source: DATA_SOURCES, description: The driest and hottest year on record there; called out on screen.}
+  e_winter:
+    value: {low: 0.60, central: 0.675, high: 0.75}
+    unit: fraction
+    basis: sourced
+    source: S6
+    description: Share of September–March rain and snow stored in the soil until April.
+  e_fallow:
+    value: 0.30
+    unit: fraction
+    basis: sourced
+    source: S6
+    description: Share of rain and snow over a 13-month fallow that is stored.
+  cover_cost_in:
+    value: {low: 2, central: 3, high: 4}
+    unit: in
+    basis: sourced
+    source: S14
+    description: A forage cover crop left this much less soil water than fallow.
+  winter_window:
+    value: {start: "09-01", end: "03-31"}
+    unit: dates (September of the previous year to March)
+    basis: sourced
+    source: S7
+    description: Rain and snow in this window feed winter storage.
+  fallow_window:
+    value: {start: "08-01", end: "08-31"}
+    unit: dates (1 August two years before to 31 August the year before)
+    basis: sourced
+    source: S6
+    description: The 13 months of a fallow year whose rain and snow feed fallow storage.
+  growing_seasons:
+    value:
+      apr_jun: {start: "04-01", end: "06-30"}
+      apr_jul: {start: "04-01", end: "07-31"}
+    unit: dates
+    basis: sourced
+    source: S7
+    description: "apr_jun (cereals and winter crops) is sourced [S7]; apr_jul (spring legumes and spring canola) is assumed from their harvest dates — see each crop's growing_season basis."
+  default_capacity_0_100cm_in:
+    value: 6.6
+    unit: in
+    basis: derived
+    source: S15
+    description: "Used only if the soil database fails: Palouse soils hold about 2 in of water per foot [S15], over the top 40 in (0–100 cm)."
+  default_capacity_0_150cm_in:
+    value: 9.9
+    unit: in
+    basis: derived
+    source: S15
+    description: "Used only if the soil database fails: about 2 in per foot [S15], over the top 60 in (0–150 cm)."
+  short_threshold_in:
+    value: 1.5
+    unit: in
+    basis: assumed
+    description: A crop is "short of water" in a year when its shortfall exceeds this.
+  margin_points:
+    value: 7
+    unit: percentage points
+    basis: assumed
+    description: "\"About the same\" margin for the share of crops short of water."
+  wheat_threshold_in:
+    value: 2.3
+    unit: in
+    basis: sourced
+    source: S7
+    description: Available water wheat needs before it makes any grain.
+  wheat_bu_per_in:
+    value: 5.8
+    unit: bu/ac per in
+    basis: sourced
+    source: S7
+    description: Wheat grain per further inch of available water. Used only to illustrate a shortfall and for the expected yield in drier places, never to predict a yield.
+  dry_mode_years:
+    value: 5
+    unit: crop years
+    basis: assumed
+    description: "Dry region mode judges water on the driest this-many of the recent crop years, by the field's crop-year rain and snow."
+
+# ---------------------------------------------------------------- soil protection (brief 6.3)
+residue:
+  persist_legume:
+    value: {low: 0.33, central: 0.54, high: 0.75}
+    unit: fraction
+    basis: derived
+    source: S8
+    description: "Share of legume residue left by the winter: 500–1,500 of 1,500–2,000 lb/ac remain."
+  persist_cereal_oilseed:
+    value: 1.0
+    unit: fraction
+    basis: assumed
+    description: Share of cereal and canola residue left by the winter.
+  carry_cereal_oilseed:
+    value: 0.5
+    unit: fraction
+    basis: assumed
+    description: "Share of cereal and canola residue still on the surface a second winter ([S6] says only that cereal residue is long-lived)."
+  carry_legume:
+    value: 0.0
+    unit: fraction
+    basis: assumed
+    description: Share of legume residue still on the surface a second winter.
+  tillage_no_till:
+    value: 1.0
+    unit: fraction left on the surface
+    basis: assumed
+    description: No-till.
+  tillage_reduced:
+    value: 0.6
+    unit: fraction left on the surface
+    basis: sourced
+    source: S6
+    description: "Reduced tillage: chisel or disk leaves 60% or more of stubble on the surface."
+  tillage_conventional:
+    value: 0.15
+    unit: fraction left on the surface
+    basis: assumed
+    description: Conventional tillage.
+  default_tillage:
+    value: reduced
+    unit: tillage
+    basis: assumed
+    description: Tillage used when the farmer has not said.
+  cover_crop_winter_lb_ac:
+    value: 3000
+    unit: lb/ac
+    basis: assumed
+    description: The winter after a cover-crop year counts as this much surface cover.
+  margin_lb_ac:
+    value: 500
+    unit: lb/ac
+    basis: assumed
+    description: "\"About the same\" margin for crop residue in the least-protected winter."
+  regional_yield_min_precip_in:
+    value: 18
+    unit: in per year
+    basis: sourced
+    source: S18
+    description: "Annual Crop zone: the regional typical yields describe places with at least this much rain and snow a year."
+  zone_transition_min_precip_in:
+    value: 15
+    unit: in per year
+    basis: assumed
+    description: "Transition zone: from this to the Annual Crop boundary; below it is Grain-Fallow. From published descriptions of the zones [S27] (addendum item 1)."
+  slope_low_below_pct:
+    value: 5
+    unit: percent slope
+    basis: assumed
+    description: Representative slope under this -> erosion sensitivity low.
+  slope_high_above_pct:
+    value: 15
+    unit: percent slope
+    basis: assumed
+    description: Representative slope above this -> erosion sensitivity high (between the two -> moderate).
+
+# ---------------------------------------------------------------- nitrogen (brief 6.4)
+nitrogen:
+  margin_lb_ac_yr:
+    value: 2
+    unit: lb/ac per year
+    basis: assumed
+    description: "\"About the same\" margin for the nitrogen credit averaged over the rotation."
+  wheat_need_lb_per_bu:
+    value: {low: 2.4, high: 3.1}
+    unit: lb N per bu
+    basis: sourced
+    source: S10
+    description: Winter wheat nitrogen need, for context in the details.
+  wheat_boost_after_legume_pct:
+    value: {low: 0, high: 19}
+    unit: percent
+    basis: sourced
+    source: "S18, S15"
+    description: "Not scored: 19% after peas in regional research [S18]; no difference in a 2023–2024 Pullman trial [S15]."
+
+# ---------------------------------------------------------------- comparing and choosing (brief 6.6)
+comparison:
+  measures:
+    value: [water, soil, nitrogen, variety]
+    unit: measure ids
+    basis: assumed
+    description: The four measures, in the default priority order (water, soil protection, nitrogen, crop variety).
+  band_small_max:
+    value: 0.34
+    unit: share of years changed
+    basis: assumed
+    description: "App setting: options changing up to this share of the rotation count as a small change."
+  band_moderate_max:
+    value: 0.67
+    unit: share of years changed
+    basis: assumed
+    description: "App setting: up to this share counts as a moderate change; above it, a large change."
+  alternatives_shown: {value: 3, unit: options, basis: assumed, description: "App setting: options shown next to the current rotation."}
+  more_shown: {value: 3, unit: options, basis: assumed, description: "App setting: further options revealed by \"show more\"."}
+  max_cautions: {value: 2, unit: cautions, basis: assumed, description: "App setting (brief 4.6): cautions shown per option before \"more\"."}
+
+generation:
+  default_step_window:
+    value: {start: "09-01", end: "08-31", spans_winter: true}
+    basis: assumed
+    description: "Dates used for a history-only class with no season (for example grass): the whole crop year."
+  max_candidates: {value: 50000, unit: options, basis: assumed, description: "App setting: upper limit on options generated per request."}
+  distance_weights:
+    value: {same_crop: 0.0, same_role_other_crop: 0.5, other_role: 1.0}
+    basis: assumed
+    description: Per-year cost used for the distance from the current rotation.
+
+nearby:
+  years: {value: 6, unit: crop years, basis: assumed, description: "Nearby use: how many recent crop-map years form a pixel's crop sequence."}
+  max_mismatch: {value: 1, unit: years, basis: assumed, description: "Nearby use: a sequence still matches a pattern with this many years different (the crop map has errors)."}
+  radius_km: {value: 10, unit: km, basis: assumed, description: "Nearby use: cropland within this distance of the field (brief 6.7)."}
+  max_unknown_years: {value: 0, unit: crop years, basis: assumed, description: "Nearby use: a pixel with more crop-map years than this in a class the tool does not model is not counted as cropland."}
+
+modis:
+  good_reliability: {value: [0], unit: pixel reliability class, basis: sourced, source: "MODIS MOD13Q1 v061 pixel_reliability classes (0 good, 1 marginal, 2 snow/ice, 3 cloudy)", description: "Pixel quality classes accepted for the long greenness history."}
+  edge_buffer_m: {value: 0, unit: m, basis: assumed, description: "App setting: extra inward margin a 250 m pixel must clear to count as wholly inside the field."}
+  season: {value: {start: "04-01", end: "08-31"}, unit: dates, basis: assumed, description: "Window searched for each year's peak greenness."}
+  window: {value: {start: "05-01", end: "06-30"}, unit: dates, basis: assumed, description: "Late-spring window whose mean greenness shows early dry-down (2021 stands out here more than in the peak)."}
+  min_good_fraction: {value: 0.5, unit: fraction, basis: assumed, description: "Share of the field's whole pixels that must be clear for a composite to count."}
+  min_whole_pixels: {value: 1, unit: pixels, basis: assumed, description: "Fewer whole 250 m pixels inside the field than this and the history is skipped as too small."}
+  smooth: {value: 2, unit: composites, basis: assumed, description: "Running mean over this many composites before taking the peak."}
+  pair_max_days: {value: 32, unit: days, basis: assumed, description: "Most days between neighbouring composites in that running mean."}
+  min_good_composites: {value: 6, unit: composites, basis: assumed, description: "Clear composites needed in the season for a year to count as reliable."}
+  max_gap_days: {value: 40, unit: days, basis: assumed, description: "Longest gap allowed between clear composites in the season."}
+  min_window_composites: {value: 3, unit: composites, basis: assumed, description: "Clear composites needed for the late-spring mean."}
+
+terrain:
+  pixel_size_m: {value: 30, unit: m, basis: assumed, description: "App setting: grid the elevation is resampled to (NASADEM is 1 arc-second, about 31 x 21 m here)."}
+  buffer_m: {value: 90, unit: m, basis: assumed, description: "App setting: elevation read beyond the field edge so slope can be computed at the edge."}
+  share_thresholds_pct: {value: [5, 15], unit: percent slope, basis: assumed, description: "Report the share of the field steeper than each of these."}
+  agree_within_pct: {value: 3, unit: percentage points, basis: assumed, description: "Elevation-map and soil-survey slopes this close count as agreeing (they also agree if in the same class or inside the soil's mapped range)."}
+  display_pixel_m: {value: 5, unit: m, basis: assumed, description: "App setting: ground size of one pixel in the slope map image."}
+
+soil_moisture:
+  first_year: {value: 2015, unit: year, basis: sourced, source: "Crop-CASMA (SMAP data from 2015)", description: "First year of satellite topsoil moisture."}
+  months: {value: [5, 7], unit: months, basis: assumed, description: "Season averaged for the regional topsoil moisture context (May to July)."}
+  min_weeks: {value: 8, unit: weeks, basis: assumed, description: "Weeks with data needed for a season's average."}
+
+station_check:
+  min_years: {value: 20, unit: crop years, basis: assumed, description: "App setting: fewest near-complete crop years a station needs before the grid is checked against it."}
+  max_distance_km: {value: 40, unit: km, basis: assumed, description: "App setting: farthest station considered (about 25 miles)."}
+  min_complete_fraction: {value: 0.98, unit: fraction of days, basis: assumed, description: "App setting: share of a crop year's days that must be usable at the station and present in the grid for that year to be compared."}
+  max_candidates: {value: 4, unit: stations, basis: assumed, description: "App setting: most stations fetched, nearest first, before reporting that no station qualifies."}
+  agreement_tolerance_pct: {value: 10, unit: percent, basis: sourced, source: DATA_SOURCES, description: "The grid counts as agreeing with the station when mean crop-year totals differ by no more than this (brief section 12: within about 10%)."}
+
+drought:
+  min_share_pct:
+    value: 50
+    unit: percent of the county
+    basis: assumed
+    description: "A crop year's worst drought class is the most severe class that covered at least this share of the county in some week."
+
+scenario:
+  rain_pct_range: {value: {low: -30, high: 10}, unit: percent, basis: assumed, description: "Growing-season rain slider range (brief 6.8)."}
+  rain_months: {value: [4, 5, 6, 7], unit: months, basis: assumed, description: "Months the rain slider applies to (April to July)."}
+  temp_f_range: {value: {low: 0, high: 5}, unit: °F, basis: assumed, description: "Temperature slider range (brief 6.8)."}
+
+assessment:
+  check_locally:
+    value: >-
+      This is a starting point for discussion, not a recommendation. Check it with
+      your own experience, your agronomist or extension office (for example WSU
+      Extension), your markets and your equipment before changing anything.
+    basis: assumed
+    description: Note shown on every option.
+
+# ---------------------------------------------------------------- this year so far (brief 3, part D)
+season:
+  min_stored_water_in:
+    value:
+      - {below_precip_in: 10, autumn: 3.5, spring: 4.5}
+      - {below_precip_in: 12, autumn: 3.0, spring: 4.0}
+      - {below_precip_in: 14, autumn: 2.5, spring: 3.5}
+      - {below_precip_in: 16, autumn: 2.0, spring: 3.0}
+      - {below_precip_in: 18, autumn: 1.5, spring: 2.5}
+      - {below_precip_in: null, autumn: 1.0, spring: 2.0}
+    unit: in of plant-available soil water, by the field's mean yearly precipitation
+    basis: sourced
+    source: S27
+    description: "Minimum stored water before planting, a guideline only [S27, Table 5-11, from Lutcher et al. 2013] (addendum item 5). Shown beside the stored-water estimate in the this-year-so-far panel."
+
+# ---------------------------------------------------------------- the farmer's records (brief 3, part B)
+records:
+  bushel_lb:
+    value: {wheat: 60, barley: 48}
+    unit: lb per bushel
+    basis: sourced
+    source: definition
+    description: Standard bushel weights used to convert a harvest given in bushels.
+  confirm_above_typical:
+    value: 3
+    unit: times the typical yield
+    basis: assumed
+    description: A harvest above this multiple of the typical yield for the field's zone is kept only after the farmer confirms it.
+  disagree_share_of_level:
+    value: 0.25
+    unit: fraction of the crop's level
+    basis: assumed
+    description: "A year disagrees when the gap between actual and expected is above this share of the level..."
+  disagree_times_typical_gap:
+    value: 1.5
+    unit: times the typical gap
+    basis: assumed
+    description: "...and also above this multiple of the typical (median) gap across the farmer's records."
+  within_bu_ac:
+    value: 8
+    unit: bu/ac (cereals) or 10% of the level (other crops)
+    basis: assumed
+    description: "How close counts as 'within' in the sentence under the expected-against-actual chart."
+  max_questions_without_records:
+    value: 3
+    unit: years
+    basis: assumed
+    description: Without records, at most this many odd years are asked about from the field's own greenness.
+
+# ---------------------------------------------------------------- fitting to the field (brief 3, part C)
+fit:
+  k:
+    value: 5
+    unit: full-weight records
+    basis: assumed
+    description: "Blend weight w = n_eff / (n_eff + k): five full-weight records count as much as the regional figure."
+  recency_half_life_years:
+    value: 10
+    unit: years
+    basis: assumed
+    description: A record loses half its weight every this many years of age. Varieties and methods change, and springs have become drier and hotter.
+  normal_scale:
+    value: 0.3
+    unit: year index
+    basis: assumed
+    description: "normal = 1 / (1 + (index / this)²): full weight in a normal year, half at ±0.3, a fifth at ±0.6."
+  unknown_reason_weight:
+    value: 0.5
+    unit: weight
+    basis: assumed
+    description: Weight of a record whose odd year the farmer could not explain ("I don't know").
+  e_winter_min_records:
+    value: 5
+    unit: usable cereal records
+    basis: assumed
+    description: Fewest records before e_winter (share of winter precipitation kept) is fitted, within its sourced range.
+  storage_factor_range:
+    value: {low: 0.7, central: 1.0, high: 1.3}
+    unit: factor on the soil's water storage
+    basis: assumed
+    description: Soil survey storage is an average for a soil type, not a field; the factor is fitted only within this range.
+  storage_min_records:
+    value: 10
+    unit: usable cereal records
+    basis: assumed
+    description: Fewest records before the storage factor is fitted.
+  self_check_min_gain:
+    value: 0.10
+    unit: fraction
+    basis: assumed
+    description: A fitted constant is applied only if leave-one-out error is at least this much lower than the farmer's own average.
+  coverage_quarter:
+    value: 0.25
+    unit: fraction of a typical run of years
+    basis: assumed
+    description: Below this share of a typical spread of years, the farmer is told their records cover too narrow a range.

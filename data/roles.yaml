@@ -1,0 +1,48 @@
+# Crop roles. A strategy is a sequence of roles; each role is filled by a crop
+# from crops.yaml with that role. `generate: false` keeps a role out of generated
+# options (it can still appear in the detected current rotation).
+# `harvest: false` marks years with no harvest (fallow, cover crop).
+provisional: true
+
+roles:
+  - id: cereal
+    label: Cereal
+    short: cereal
+    color: "#C9A227"
+    generate: true
+    harvest: true
+  - id: legume
+    label: Legume
+    short: legume
+    description: Peas, lentils, chickpeas; they add nitrogen to the soil.
+    color: "#3E9B4F"
+    generate: true
+    harvest: true
+  - id: oilseed
+    label: Oilseed
+    short: oilseed
+    description: Canola.
+    color: "#E6D619"
+    generate: true
+    harvest: true
+  - id: fallow
+    label: Fallow
+    short: fallow
+    description: A year with no crop, to store water in the soil.
+    color: "#A8977A"
+    generate: true
+    harvest: false
+  - id: cover_crop
+    label: Cover crop
+    short: cover crop
+    description: Grown in place of a fallow year to cover the soil; not harvested.
+    color: "#3FA7A0"
+    generate: true
+    harvest: false
+  - id: forage
+    label: Perennial forage
+    short: forage
+    color: "#C77DBA"
+    generate: false
+    harvest: true
+    description: Multi-year perennials are recognised in the crop history only.
