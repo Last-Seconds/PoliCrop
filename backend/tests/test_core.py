@@ -8,15 +8,15 @@ import pytest
 
 from fieldshift.cache import CachedProvider, FileCache
 from fieldshift.core import climate, history, vegetation
-from fieldshift.core.content import AGRONOMIC_ATTRIBUTES, ContentError, load_content, parse_crops
+from fieldshift.core.content import BASES, Basis, ContentError, load_content, parse_crops
 from fieldshift.core.geometry import FieldError, PolygonField, field_from_spec
 from fieldshift.core.service import FieldService, Providers
 from fieldshift.core.strategies.generate import (best_alignment, build_pool, canonical, describe_differences,
-                                                 distance, generate)
+                                                 distance, enumerate_candidates)
 from fieldshift.core.strategies.model import Strategy, make_steps
 from fieldshift.core.strategies.rules import RULE_REGISTRY, build_rules
 
-from .fakes import DATA_DIR, FIELD, OUTSIDE, FakeCrops, FakeRegion, FakeVegetation, FakeWeather
+from .fakes import DATA_DIR, FIELD, OUTSIDE, FakeCrops, FakeRegion, FakeSoil, FakeVegetation, FakeWeather
 
 
 @pytest.fixture(scope="module")
@@ -26,8 +26,15 @@ def content():
 
 @pytest.fixture
 def service(content):
-    return FieldService(content, Providers(FakeRegion(), FakeCrops(), FakeWeather(), FakeVegetation()),
-                        today=dt.date(2026, 11, 14))
+    return FieldService(content, Providers(FakeRegion(), FakeCrops(), FakeWeather(), FakeVegetation(),
+                                           soil=FakeSoil()), today=dt.date(2026, 11, 14))
+
+
+@pytest.fixture
+def long_service(content):
+    """Like `service`, with a 1980-2025 weather record for the replay."""
+    return FieldService(content, Providers(FakeRegion(), FakeCrops(), FakeWeather(short=False), FakeVegetation(),
+                                           soil=FakeSoil()), today=dt.date(2026, 11, 14))
 
 
 # ---- content ---------------------------------------------------------------------------
@@ -36,16 +43,29 @@ def test_content_files_load_and_reference_valid_roles(content):
     role_ids = {r.id for r in content.roles}
     assert {c.role for c in content.crops} <= role_ids
     names = {c.name for c in content.crops}
-    for expected in ("Winter wheat", "Spring wheat", "Barley", "Peas", "Lentils", "Chickpeas", "Canola", "Fallow"):
+    for expected in ("Winter wheat", "Spring wheat", "Spring barley", "Spring peas", "Winter peas", "Lentils",
+                     "Chickpeas", "Spring canola", "Winter canola", "Fallow", "Cover crop"):
         assert expected in names
+    offered = {c.id for c in content.offered_crops()}
+    assert "dry_beans" not in offered and "alfalfa" not in offered  # history only
+    assert content.crop("peas").id == "spring_peas"  # old ids still resolve
     assert content.crop_for_code("us_cdl", 24).id == "winter_wheat"
     assert content.crop_for_code("us_cdl", 61).role == "fallow"
     assert any(c.pool == "always" and c.role == "cover_crop" for c in content.crops)
 
 
-def test_crop_table_schema_has_every_attribute(content):
-    for c in content.crops:
-        assert set(AGRONOMIC_ATTRIBUTES) <= set(c.attributes)
+def test_crop_table_every_value_has_a_basis(content):
+    for c in content.offered_crops():
+        if c.role in ("fallow", "cover_crop"):
+            continue
+        assert c.sowing_window and c.harvest_window, c.id
+        for block in (c.water_need, c.root_zone, c.growing_season, c.regional_yield, c.residue):
+            assert block is not None, c.id
+            assert isinstance(block["basis"], Basis) and block["basis"].basis in BASES
+        for w in (c.sowing_window, c.harvest_window):
+            assert w.basis.basis in BASES
+    for p in content.settings.params():
+        assert p.basis in BASES and (p.basis == "assumed" or p.source), p.key
 
 
 def test_bad_content_is_rejected():
@@ -56,8 +76,13 @@ def test_bad_content_is_rejected():
                                {"id": "b", "name": "B", "role": "cereal", "class_codes": {"us_cdl": [1]}}]},
                     {"cereal"})
     with pytest.raises(ContentError):
-        parse_crops({"crops": [{"id": "a", "name": "A", "role": "cereal",
-                                "season_window": {"start": "13-01", "end": "08-01"}}]}, {"cereal"})
+        parse_crops({"crops": [{"id": "a", "name": "A", "role": "cereal", "generate": False,
+                                "sowing_window": {"start": "13-01", "end": "08-01", "basis": "assumed"}}]},
+                    {"cereal"})
+    with pytest.raises(ContentError, match="needs a source"):
+        parse_crops({"crops": [{"id": "a", "name": "A", "role": "cereal", "generate": False,
+                                "sowing_window": {"start": "09-01", "end": "10-01", "basis": "sourced"}}]},
+                    {"cereal"})
 
 
 def test_thresholds_come_from_settings_file(tmp_path, content):
@@ -69,7 +94,7 @@ def test_thresholds_come_from_settings_file(tmp_path, content):
     (d / "settings.yaml").write_text(text)
     c2 = load_content(d)
     assert c2.settings["vegetation.bare_ndvi_threshold"] == 0.9
-    assert content.settings.param("vegetation.bare_ndvi_threshold").provisional
+    assert content.settings.param("vegetation.bare_ndvi_threshold").basis == "assumed"
 
 
 # ---- geometry ------------------------------------------------------------------------------
@@ -103,9 +128,12 @@ def test_history_dominant_class_share_and_uncertainty(service):
 
 def test_history_corrections(service):
     f = service.make_field({"type": "polygon", "geometry": FIELD})
-    h = service.history(f, {"2025": "barley", "2024": "class:176", "1990": "peas", "2023": "nonsense"})
+    h = service.history(f, {"2025": "barley", "2024": "class:176", "1990": "peas", "2023": "nonsense",
+                            "2022": "winter_peas"})
     years = {y["year"]: y for y in h["years"]}
-    assert years[2025]["name"] == "Barley" and years[2025]["corrected"] and years[2025]["detected_name"] == "Lentils"
+    assert years[2025]["name"] == "Spring barley" and years[2025]["corrected"]
+    assert years[2025]["detected_name"] == "Lentils"
+    assert years[2022]["crop_id"] == "winter_peas" and years[2022]["role"] == "legume"
     assert years[2024]["name"] == "Grass/Pasture" and years[2024]["role"] is None
     assert not years[2023]["corrected"]
 
@@ -135,17 +163,20 @@ def test_validate_counts_rejects_garbage():
 def test_climate_wet_winter_dry_summer_and_missing_values(service, content):
     f = service.make_field({"type": "polygon", "geometry": FIELD})
     c = service.climate(f)
-    months = {m["month"]: m for m in c["rainfall_monthly"]["months"]}
-    assert months[12]["mean_mm"] > months[7]["mean_mm"] * 5
+    months = {m["month"]: m for m in c["monthly"]}
+    assert months[12]["mean_in"] > months[7]["mean_in"] * 5
     # Feb 2001 has a missing day -> that month is excluded, not estimated
     assert months[2]["years"] == 5
-    yearly = {y["year"]: y for y in c["rainfall_yearly"]["years"]}
-    assert yearly[2000]["total_mm"] is None  # crop year 1999-2000 starts before the record
-    assert yearly[2001]["total_mm"] is None  # contains the missing day
-    assert yearly[2003]["complete"] and yearly[2003]["total_mm"] > 0
-    frost = {y["year"]: y for y in c["frost_days"]["years"]}
-    assert frost[2003]["frost_days"] > 0
-    assert any(cv["id"] == "regional_weather" and "rainfall_monthly" in cv["applies_to"] for cv in c["caveats"])
+    yearly = {y["year"]: y for y in c["yearly"]}
+    assert 2000 not in yearly  # crop year 1999-2000 starts before the record
+    assert 2001 not in yearly  # contains the missing day
+    assert yearly[2003]["total_in"] > 0
+    # US units at the display edge: about 1.5 mm a day in October is about 1.8 in for the month
+    assert months[10]["mean_in"] == pytest.approx(1.5 * 31 / 25.4, abs=0.01)
+    frost = {y["year"]: y for y in c["frost_days"]}
+    assert frost[2003]["days"] > 0
+    assert all(t["high_f"] > t["low_f"] for t in c["temperature"])
+    assert any(cv["id"] == "regional_weather" for cv in c["caveats"])
 
 
 def test_climate_value_validation():
@@ -188,60 +219,64 @@ def test_bare_period_not_carried_across_gap(content):
 
 # ---- strategies -----------------------------------------------------------------------------------
 
-def test_strategies_end_to_end(service):
+def test_strategies_end_to_end(long_service):
+    service = long_service
     f = service.make_field({"type": "polygon", "geometry": FIELD})
     st = service.strategies(f)
     assert st["plan_length"] == 3
     # history ends 2025 (W, S, L for 2023-25); today is Nov 2026, so the plan starts with harvest 2028
     # and the rotation's phase is carried forward: 2026 W, 2027 S, 2028 L, 2029 W, 2030 S
     assert st["first_harvest_year"] == 2028 and st["assumed_years"] == [2026, 2027]
-    assert [s["crop"] for s in st["existing"]["steps"]] == ["Lentils", "Winter wheat", "Spring wheat"]
-    assert st["existing"]["steps"][0]["start"] == "2027-09-01"
+    assert [s["crop"] for s in st["current"]["steps"]] == ["Lentils", "Winter wheat", "Spring wheat"]
+    assert st["current"]["steps"][0]["slot_start"] == "2027-09-01"
+    assert st["current"]["steps"][0]["start"] == "2028-04-10"  # lentils: real sowing date
     assert any(c["id"] == "assumed_years" for c in st["caveats"])
-    assert len(st["alternatives"]) >= 3
-    distances = [a["distance"] for a in st["alternatives"]]
-    assert all(d > 0 for d in distances) and len(set(distances)) >= 2
-    for s in [st["existing"], *st["alternatives"]]:
-        assert s["scores"] == {}  # no scoring in v0
-        assert s["not_assessed"] == ["Water use", "Nitrogen", "Erosion", "Income"]
-        assert {r["rule_id"] for r in s["rules"]} == {"no_identical_consecutive_crop", "no_overlapping_dates"}
+    assert 1 <= len(st["options"]) <= 3 and st["headline"]
+    for s in [st["current"], *st["options"], *st["more"]]:
+        assert {r["code"] for r in s["rules"]} == {"H1", "H2", "H3", "H4", "H5"}
         assert s["steps"][0]["start"] < s["steps"][0]["end"]
-        assert "best" not in json.dumps(s).lower()
-    for a in st["alternatives"]:
-        assert a["passed_all_rules"] and a["differences"] and a["summary"]
+        shown = {**s, "details": {**s["details"], "evidence": [{**e, "sources": []} for e in s["details"]["evidence"]]}}
+        text = json.dumps(shown, ensure_ascii=False).lower()  # publication titles are quoted as published
+        for banned in ("best", "ndvi", "candidate", "dominat", "replay", "precipitation", "provisional", " mm",
+                       "kg/ha", "°c"):
+            assert banned not in text, banned
+        assert [l["measure"] for l in s["lines"]] == ["water", "soil", "nitrogen", "variety"]
+        assert set(s["details"]) >= {"why", "evidence", "gains", "unknowns", "check"}
+    for a in st["options"] + st["more"]:
+        assert all(r["passed"] for r in a["rules"]) and a["summary"] and a["notes"]["change_details"]
+        assert all(l["verdict_word"] in ("better", "about the same", "worse", "not assessed") for l in a["lines"])
+        # brief 12: no option shown has two years running without a harvest
+        roles = [x["role"] for x in a["steps"]]
+        assert not any(roles[i] in ("fallow", "cover_crop") and roles[i - 1] in ("fallow", "cover_crop")
+                       for i in range(len(roles)))
     pool_names = {c["name"] for c in st["pool"]["crops"]}
-    assert "Alfalfa" not in pool_names  # below the minimum share nearby
-    assert "Cover crop (species not chosen)" in pool_names
+    assert "Alfalfa" not in pool_names  # history only
+    assert "Cover crop" in pool_names
+    assert {"Winter peas", "Winter canola"} <= pool_names  # offered where the map shows peas / canola
+    assert st["inputs"]["tillage"] == {"value": "reduced", "source": "default", "default": "reduced"}
 
 
-def test_strategies_respect_plan_length_and_corrections(service):
+def test_strategies_respect_inputs(long_service):
+    service = long_service
     f = service.make_field({"type": "polygon", "geometry": FIELD})
-    st = service.strategies(f, plan_length=4)
-    assert st["plan_length"] == 4 and len(st["existing"]["steps"]) == 4
-    st2 = service.strategies(f, corrections={"2025": "peas"})
-    assert "Peas" in [s["crop"] for s in st2["existing"]["steps"]]
-
-
-def test_rules(content):
-    rules = build_rules(content.rules)
-    assert {r.id for r in rules} == set(RULE_REGISTRY) & {"no_identical_consecutive_crop", "no_overlapping_dates"}
-    ww = content.crop("winter_wheat")
-    window = content.settings["generation.default_step_window"]
-    from fieldshift.core.content import SeasonWindow
-    dw = SeasonWindow.parse(window, "t")
-    bad = Strategy("x", "generated", make_steps([ww, content.crop("peas"), ww], 2026, dw))
-    res = {r.rule_id: r for r in (rule.check(bad, content) for rule in rules)}
-    assert not res["no_identical_consecutive_crop"].passed  # last -> first (cyclic)
-    assert "next cycle" in res["no_identical_consecutive_crop"].reason
-    assert res["no_overlapping_dates"].passed
-    # Overlap: a crop sown in spring before an autumn-to-summer crop ends
-    early = SeasonWindow("07-01", "07-15", True)  # sown 1 Jul before harvest year
-    late = SeasonWindow("09-15", "08-10", True)
-    from dataclasses import replace
-    a = replace(ww, id="a", season_window=late)
-    b = replace(ww, id="b", season_window=early)
-    s = Strategy("y", "generated", make_steps([a, b], 2026, dw))
-    assert not rules[1].check(s, content).passed
+    st = service.strategies(f, {"plan_length": 4})
+    assert st["plan_length"] == 4 and len(st["current"]["steps"]) == 4
+    st2 = service.strategies(f, {"corrections": {"2025": "peas"}})
+    assert "Spring peas" in [s["crop"] for s in st2["current"]["steps"]]
+    st3 = service.strategies(f, {"exclude": ["chickpeas", "spring_canola"], "keep": ["lentils"]})
+    for o in st3["options"] + st3["more"]:
+        assert "chickpeas" not in o["crop_ids"] and "spring_canola" not in o["crop_ids"]
+        assert "lentils" in o["crop_ids"]
+    st4 = service.strategies(f, {"dry_mode": True, "priorities": ["variety", "water"]})
+    assert [p["id"] for p in st4["priorities"]][0] == "water"  # dry region mode puts water first
+    assert len(st4["looking_back"]["window_years"]) == 5
+    assert any("Dry region mode is on" in h for h in st4["headline"])
+    st5 = service.strategies(f, {"ph": 5.0, "tillage": "no_till", "rain_pct": -30, "temp_f": 5,
+                                 "yields": {"winter_wheat": 70}, "nonsense": 1})
+    assert st5["inputs"]["ph"]["source"] == "farmer" and st5["inputs"]["tillage"]["value"] == "no_till"
+    keys = {c["key"] for o in [st5["current"]] + st5["options"] for c in o["cautions"]}
+    assert "W4u" not in keys  # pH is known now
+    assert any("Weather changed to" in h for h in st5["headline"])
 
 
 def test_distance_alignment_and_canonical(content):
@@ -252,21 +287,23 @@ def test_distance_alignment_and_canonical(content):
     assert d == 0 and [c.id for c in aligned] == ["winter_wheat", "spring_wheat", "lentils"]
     assert canonical(("b", "c", "a")) == canonical(("a", "b", "c"))
     details, summary = describe_differences([ww, sw, le], [ww, ca, le], content)
-    assert "adds an oilseed in year 2" in summary.lower()
-    assert details == ["Year 2: Canola (oilseed) instead of Spring wheat (cereal)"]
+    assert summary == "Spring canola instead of spring wheat"
+    assert details == ["Year 2: spring canola instead of spring wheat"]
 
 
 def test_generation_never_returns_existing_or_rule_breakers(content):
     pool = build_pool({24: 100, 23: 100, 52: 100, 31: 100, 61: 100}, content, "us_cdl", [2025], 10)
     rules = build_rules(content.rules)
     ex = [content.crop(x) for x in ("winter_wheat", "spring_wheat", "lentils")]
-    res = generate(ex, pool, content, rules, [], 2026, alternatives_wanted=5)
+    res = enumerate_candidates(ex, pool, content, rules, 2026)
     assert res.stats["candidates_generated"] > 0 and res.stats["candidates_failed"] > 0
     seen = {canonical(tuple(c.id for c in ex))}
-    for a in res.alternatives:
+    for cand in res.candidates:
+        a = cand.strategy
         assert canonical(a.crop_ids) not in seen
         seen.add(canonical(a.crop_ids))
         assert a.passed
+    assert "dry_beans" not in {c for cand in res.candidates for c in cand.strategy.crop_ids}
 
 
 # ---- cache ------------------------------------------------------------------------------------------

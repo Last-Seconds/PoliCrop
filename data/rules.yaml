@@ -1,18 +1,106 @@
-# Filter rules: PROVISIONAL CONTENT.
+# Hard rules and warnings (BUILD_BRIEF_2.md section 6.1). PROVISIONAL MODEL CONTENT.
+#
 # Each entry enables a rule implemented in backend/fieldshift/core/strategies/rules.py
-# (looked up by id in the rule registry). Parameters are passed to the rule.
-# A candidate that fails any enabled rule is discarded; the existing rotation is
-# never discarded, its rule results are shown instead.
+# (hard rules) or warnings.py (warnings), looked up by id. Parameters are passed to it.
+# A generated option that fails a hard rule is discarded; the farmer's current
+# rotation is never discarded, its rule results are shown gently instead.
+# Warnings never remove an option; they are shown beside it.
 rules:
-  - id: no_identical_consecutive_crop
+  - id: no_identical_consecutive_crop     # H1
+    code: H1
     enabled: true
-    provisional: true
-    params:
-      # Also compare the last step with the first, because a rotation repeats.
-      cyclic: true
+    basis: assumed
+    source: general
+    params: {cyclic: true}
 
-  - id: no_overlapping_dates
+  - id: no_overlapping_dates              # H2
+    code: H2
     enabled: true
-    provisional: true
-    params:
-      cyclic: true
+    basis: sourced
+    source: physical
+    params: {cyclic: true}
+
+  - id: legume_spacing                    # H3
+    code: H3
+    enabled: true
+    basis: sourced
+    source: "S3, S16"
+    params: {window_years: 3, cyclic: true}
+
+  - id: winter_canola_after_fallow        # H4
+    code: H4
+    enabled: true
+    basis: sourced
+    source: S25
+    params: {crop: winter_canola, after_roles: [fallow]}
+
+  - id: no_two_years_without_harvest      # H5
+    code: H5
+    enabled: true
+    basis: assumed
+    source: "structural sanity rule added in the brief"
+    params: {cyclic: true}
+
+warnings:
+  - id: chickpeas_every_third_year        # W1
+    code: W1
+    enabled: true
+    basis: sourced
+    source: S3
+    params: {crop: chickpeas, gap_years: 3}
+
+  - id: legumes_close_together            # W2
+    code: W2
+    enabled: true
+    basis: sourced
+    source: S16
+    params: {min_gap_years: 3}
+
+  - id: spring_canola_dry                 # W3
+    code: W3
+    enabled: true
+    basis: sourced
+    source: S25
+    params: {crop: spring_canola, min_precip_in: 12}
+
+  - id: soil_acidity                      # W4
+    code: W4
+    enabled: true
+    basis: sourced
+    source: S13
+    params: {}
+
+  - id: chickpea_heat                     # W5
+    code: W5
+    enabled: true
+    basis: sourced
+    source: S16
+    params: {crop: chickpeas, limit_f: 98, months: [6, 7], months_basis: assumed}
+
+  - id: winter_pea_cold                   # W6
+    code: W6
+    enabled: true
+    basis: sourced
+    source: S4
+    params: {crop: winter_peas, limit_f: -6, months: [11, 12, 1, 2, 3]}
+
+  - id: peas_poor_drainage                # W7
+    code: W7
+    enabled: true
+    basis: sourced
+    source: S2
+    params: {crops: [spring_peas, winter_peas], drainage: [Poorly drained, Somewhat poorly drained]}
+
+  - id: herbicide_carryover               # W8
+    code: W8
+    enabled: true
+    basis: sourced
+    source: "S5, S23"
+    params: {}
+
+  - id: spring_peas_dry                   # W9
+    code: W9
+    enabled: true
+    basis: sourced
+    source: S4
+    params: {crop: spring_peas, min_precip_in: 17.7}

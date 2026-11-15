@@ -1,0 +1,95 @@
+# Sources cited by basis labels in crops.yaml, settings.yaml and rules.yaml.
+# Generated from docs/CROP_TABLE_DRAFT.md (section Sources); edit freely.
+sources:
+- id: S1
+  citation: USDA NASS, *Usual Planting and Harvesting Dates for U.S. Field Crops*, Agricultural Handbook 628, December 1997, Washington table
+  url: https://swat.tamu.edu/media/90113/crops-typicalplanting-harvestingdates-by-states.pdf
+- id: S2
+  citation: USA Dry Pea & Lentil Council, *USA Dry Pea, Lentil & Chickpea Production*
+  url: https://agresearch.montana.edu/wtarc/producerinfo/agronomy-nutrient-management/Pulses/USADryPeaCouncil%20FactSheet.pdf
+- id: S3
+  citation: Corp et al., *Chickpea Production Guide*, Oregon State University EM 8791-E, 2004
+  url: https://agsci.oregonstate.edu/sites/agsci.oregonstate.edu/files/cbarc/attachments/EM8791_-_Chickpea_Production_Guide_0.pdf
+- id: S4
+  citation: 'Schillinger, *Winter Pea: Promising New Crop for Washington''s Dryland Wheat-Fallow Region*, Frontiers in Ecology and Evolution, 2017'
+  url: https://www.frontiersin.org/journals/ecology-and-evolution/articles/10.3389/fevo.2017.00043/full
+- id: S5
+  citation: US Canola Association, *Canola Growers' Manual*
+  url: https://agresearch.montana.edu/wtarc/producerinfo/agronomy-nutrient-management/Canola/USCanolaProdGuide.pdf
+- id: S6
+  citation: Schillinger et al., *Dryland Cropping in the Western United States*, PNW Conservation Tillage Handbook No. 28, 2003
+  url: https://s3.wp.wsu.edu/uploads/sites/3233/2023/03/Number-28.pdf
+- id: S7
+  citation: Schillinger et al., *Predicting Wheat Grain Yields Based on Available Water*, WSU Extension EM049E
+  url: https://s3.wp.wsu.edu/uploads/sites/2200/2012/04/Available-water-and-wheat-yield-EM049E.pdf
+- id: S8
+  citation: 'Veseth et al., "Achieving Conservation Compliance with Residue Farming in the High-Precipitation Zone", in *Crop residue management to reduce erosion and improve soil quality: Northwest*, USDA
+    ARS Conservation Research Report 40, p. 17'
+  url: https://upload.wikimedia.org/wikipedia/commons/f/f0/Crop_residue_management_to_reduce_erosion_and_improve_soil_quality_-_northwest_%28IA_cropresiduemanag40pape%29.pdf
+- id: S9
+  citation: McClellan et al., *Grain yield and biomass relationship for crops in the Inland Pacific Northwest United States*, 2012
+  url: https://www.ars.usda.gov/ARSUserFiles/20902500/TemporaryPublicationFilepubswithnohandle/Grain%20yield%20and%20biomass%20relationship.pdf
+- id: S10
+  citation: 'University of Idaho, *Northern Idaho Fertilizer Guide: Winter Wheat*, CIS 453'
+  url: https://content-hub.uidaho.edu/api/public/content/7819b47a72f84162a6949d607c69e8b1?v=69134fb9
+- id: S11
+  citation: 'WSU Extension, *Eastern Washington Nutrient Management Guide: Dryland Winter Wheat*, EB1987E'
+  url: https://wpcdn.web.wsu.edu/cahnrs/uploads/sites/16/EB1987E-3.pdf
+- id: S12
+  citation: WSU Small Grains, *Soil Acidification in the Inland Pacific Northwest*
+  url: https://smallgrains.wsu.edu/soil-and-water-resources/soil-acidification-in-the-inland-northwest/
+- id: S13
+  citation: Froese et al., *Recommended Crop Species and Wheat Varieties for Acidic Soil*, WSU Extension FS169E, 2015
+  url: https://wpcdn.web.wsu.edu/wp-ecommerce/uploads/sites/2/product-4095-sku-FS169E.pdf
+- id: S14
+  citation: McGuire, *Water Use Limitations of Cover Crops in Dryland Cropping*, WSU CSANR, 2023
+  url: https://csanr.wsu.edu/wateruselimitationscovercrops/
+- id: S15
+  citation: Heineck et al., *Yield and water use of grain legumes intercropped with spring canola in Eastern Washington*, Agrosystems, Geosciences & Environment, 2025. Trial at the Palouse Conservation
+    Field Station near Pullman
+  url: https://acsess.onlinelibrary.wiley.com/doi/10.1002/agg2.70167
+- id: S16
+  citation: McVay et al., *Chickpea Production*, Montana State University Extension, 2016
+  url: https://aes.colostate.edu/swrcr/wp-content/uploads/sites/92/2019/03/MSU-Extension-Chickpea-Production.pdf
+- id: S17
+  citation: Painter et al., *Economics of Spring Canola Production in Dryland Eastern Washington*, WSU Extension EB2009E, 2006
+  url: https://wpcdn.web.wsu.edu/cahnrs/uploads/sites/5/2015/02/eb2009e.pdf
+- id: S18
+  citation: Painter, *Cost and Returns Baseline for the Dryland Grain Annual Cropping Region of the Pacific Northwest for 2011–2015*, Pacific Northwest Extension
+  url: https://content-hub.uidaho.edu/api/public/content/50a05df64991421e840f6ab5a7690031?v=c2f61a6d
+- id: S19
+  citation: Koenig et al., *Canola Growth, Development, and Fertility*, WSU Extension FS045E
+  url: https://pnwcanola.org/wp-content/uploads/2026/05/Canola-Growth-Development-Fertility.pdf
+- id: S20
+  citation: Williams et al., *Productivity and water use efficiency of intensified dryland cropping systems under low precipitation in Pacific Northwest, USA*, Field Crops Research, 2020 (abstract only)
+  url: https://agris.fao.org/search/en/providers/122535/records/65de9d0ab766d82b18fdd4d2
+- id: S21
+  citation: University of Idaho, *Idaho Spring Barley Production Guide*
+  url: https://agresearch.montana.edu/wtarc/producerinfo/agronomy-nutrient-management/Barley/IdahoSpringBarleyProdGuide.pdf
+- id: S22
+  citation: Pan et al., *4R Nitrogen Management When Integrating Canola into Semi-arid Wheat*, Crops & Soils, 2017
+  url: https://pnwcanola.org/wp-content/uploads/2026/05/4R-Nitrogen-Management-When-Integrating-Canola-into-Semi-arid-Wheat.pdf
+- id: S23
+  citation: McVay et al., *Montana Cool-Season Pulse Production Guide*, Montana State University Extension EB0210
+  url: https://www.montana.edu/extension/Full_HTML_Pubs/EB0210-MontanaCoolSeasonPulseProductionGuide/EB0210-MontanaCoolSeasonPulseProductionGuide.html
+- id: S24
+  citation: 'USDA NASS, *Field Crops: Usual Planting and Harvesting Dates*, Agricultural Handbook 628, October 2010, Washington table'
+  url: https://esmis.nal.usda.gov/sites/default/release-files/vm40xr56k/dv13zw65p/z603r1055/planting-10-29-2010.txt
+- id: S25
+  citation: 'Sowers et al., *Physiology Matters: Adjusting Wheat-Based Management Strategies for Oilseed Production*, WSU Extension FS244E'
+  url: https://pnwcanola.org/wp-content/uploads/2026/05/Physiology-Matters-Adjusting-Wheat-Based-Management-Strategies-for-Oilseed-Production.pdf
+- id: S26
+  citation: Zuger and Burke, *Spring Canola Seeding Rates*, WSU 2018 Field Day Abstracts
+  url: https://pnwcanola.org/wp-content/uploads/2026/05/Spring-Canola-Seeding-Rates.pdf
+- id: DATA_SOURCES
+  citation: Field Shift data-source survey (docs/DATA_SOURCES.md), station and Daymet comparisons, 2026-11-15
+  url: null
+- id: general
+  citation: General rotation practice
+  url: null
+- id: physical
+  citation: 'Physical constraint: a field holds one crop at a time'
+  url: null
+- id: definition
+  citation: Definition
+  url: null

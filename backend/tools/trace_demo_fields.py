@@ -1,6 +1,7 @@
 """Trace real field outlines around seed points: connected pixels sharing the seed's crop sequence.
 
 Run from backend/:  python tools/trace_demo_fields.py > ../data/demo_fields.geojson
+Append only seeds not yet in the file:  python tools/trace_demo_fields.py --append ../data/demo_fields.geojson
 """
 from __future__ import annotations
 
@@ -23,11 +24,24 @@ SEEDS = [  # (name, lon, lat) from tools/find_demo_fields.py
     ("Demo field B — near Steptoe", -117.355602, 47.128746),
     ("Demo field C — west of Colfax", -117.317714, 46.988695),
     ("Demo field D — near Pullman", -117.243403, 46.84862),
+    # Dry west: winter wheat alternating with fallow 2014–2025 (found by scanning blocks within
+    # 12 km of LaCrosse for a clean wheat–fallow sequence).
+    ("Demo field E — near LaCrosse (dry west)", -117.872204, 46.794072),
 ]
 YEARS = range(2014, 2026)
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--append", help="existing GeoJSON: trace only seeds whose name is not in it, write it back")
+    args = ap.parse_args()
+    existing = None
+    seeds = SEEDS
+    if args.append:
+        existing = json.load(open(args.append))
+        have = {f["properties"]["name"] for f in existing["features"]}
+        seeds = [s for s in SEEDS if s[0] not in have]
     cs = CropScapeCountyCdl("53075", get_cache())
     arrs = []
     for y in YEARS:
@@ -38,7 +52,7 @@ def main():
     to_px = Transformer.from_crs(4326, crs, always_xy=True)
     to_ll = Transformer.from_crs(crs, 4326, always_xy=True)
     feats = []
-    for name, lon, lat in SEEDS:
+    for name, lon, lat in seeds:
         x, y = to_px.transform(lon, lat)
         col, row = ~tr * (x, y)
         row, col = int(row) + 6, int(col) + 6  # centre of the 14-px block
@@ -57,7 +71,13 @@ def main():
             "Outline traced from pixels that share this field's 2014–2025 crop sequence in the CDL; "
             "a demo field, not a surveyed boundary.")},
             "geometry": {"type": "Polygon", "coordinates": [coords]}})
-    print(json.dumps({"type": "FeatureCollection", "features": feats}, indent=1))
+    if existing is not None:
+        existing["features"].extend(feats)
+        with open(args.append, "w") as fh:
+            json.dump(existing, fh, indent=1, ensure_ascii=False)
+        print(f"appended {len(feats)} field(s) to {args.append}", file=sys.stderr)
+    else:
+        print(json.dumps({"type": "FeatureCollection", "features": feats}, indent=1))
 
 
 if __name__ == "__main__":

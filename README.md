@@ -1,9 +1,11 @@
-# Field Shift: v0
+# Field Shift
 
 A web app for the NASA Space Apps 2026 challenge *Field Shift: Adapting Farms with NASA Data*.
-A farmer draws one field in Whitman County, Washington (the Palouse). The app reads the field's crop
-history, weather and vegetation from public data, and puts generated crop-rotation alternatives next to
-the existing rotation, without ranking them. Agronomy content is provisional (see `BUILD_BRIEF.md`).
+A farmer picks one field in Whitman County, Washington (the Palouse). The app reads the field's crop
+history, weather, soil and slope from public data, and puts the current rotation beside three alternatives,
+each judged on four measures (water, soil protection, nitrogen, crop variety) as better, about the same or
+worse than now, with the evidence one tap away. See `BUILD_BRIEF_2.md` for the design; the model is
+provisional (designed from sourced figures, not yet reviewed by anyone with farming expertise).
 
 ## Run
 
@@ -14,59 +16,71 @@ uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -e ".[de
 # open http://localhost:8765
 ```
 
-Pre-warm the cache for the demo fields (about 10 minutes the first time, mostly Sentinel-2):
+Pre-warm the cache for the example fields (the first time takes a while, mostly satellite images and the
+soil database, which answers in about a minute per query):
 
 ```bash
 .venv/bin/python -m fieldshift.prewarm
 ```
 
-Tests (offline, canned providers):
+Tests (offline, canned providers): `.venv/bin/python -m pytest`
+
+Checks against real data:
 
 ```bash
-.venv/bin/python -m pytest
+.venv/bin/python tools/west_east_check.py      # the brief's west–east water check (section 12)
 ```
 
 ## Layout
 
 ```
 data/                      content: edit these, no code change needed
-  crops.yaml               crop table (name, CDL code, role; agronomic attributes null on purpose)
-  roles.yaml               crop roles and colours
-  rules.yaml               which filter rules are enabled, with parameters
-  settings.yaml            every threshold/parameter, each marked provisional or not
-  attributions.yaml        data sources, licences, attribution text (shown in the app)
+  crops.yaml               crop table (Appendix A of the brief); every value has a basis and source
+  roles.yaml               crop roles
+  rules.yaml               hard rules H1–H5 and warnings W1–W9, with parameters, basis and source
+  settings.yaml            every model constant and threshold, with unit, basis and source
+  sources.yaml             the cited sources [S1]..[S26]
+  attributions.yaml        data sources and licences (shown in the app)
   region.yaml              the region served and its provider set
-  demo_fields.geojson      demo fields (outlines traced from the CDL, see backend/tools)
-  us/cdl_legend.json       official CDL class names/colours (generated from CropScape)
+  demo_fields.geojson      example fields, including one near LaCrosse in the dry west
 backend/fieldshift/
   core/                    pure logic: no network, no web framework (enforced by a test)
-    ports.py               provider interfaces (region, crop history, weather, vegetation)
-    geometry.py            FieldGeometry (polygon now; point/parcel later = new subclass)
-    history.py climate.py vegetation.py
-    strategies/            model, rule registry, scorer interface (empty), generate-and-filter
-    service.py             assembles report sections, attaches caveats to the claims they affect
-  providers/us/            US implementation: TIGERweb, CDL (Planetary Computer + CropScape),
-                           NASA POWER, Sentinel-2 L2A (Planetary Computer)
+    units.py               internal units (mm, °C, kg/ha, ha); US units only at the display edge
+    content.py             loads and validates the data files
+    weather.py climate.py  daily series, window sums, rain-and-heat summaries
+    replay.py              the water budget, replayed over every past crop year (1982 on)
+    soil.py terrain.py     soil facts; slope from the elevation map, compared with the soil survey
+    station.py drought.py  weather-station check; county drought history
+    nearby.py              how common a pattern of crop types is around the field
+    strategies/            model, rules (H1–H5), warnings (W1–W9), generate, measures (scorer registry),
+                           compare (verdicts, assumed-value rule, dominance, ordering, selection), plan
+    present.py             plain-words, US-unit screen content (the display edge)
+    service.py             assembles each section; a failing source degrades one section only
+  providers/us/            TIGERweb, CDL, Daymet, gNATSGO + Soil Data Access, Sentinel-2, MODIS,
+                           NASADEM, ACIS stations, US Drought Monitor
   cache.py                 file cache between providers and core (stale-if-error)
   api.py                   FastAPI routes (thin)
-  prewarm.py               cache pre-warming CLI
-backend/tools/             scripts that produced data files (CDL legend, demo fields)
-frontend/                  one page, two states (map -> field report); Leaflet + Chart.js, no build
+backend/tools/             scripts that produced data files or run checks
+frontend/                  one page: choose a field -> the answer first; Leaflet + Chart.js, no build
 cache/                     runtime cache (git-ignored)
 ```
 
-Adding another country means writing a new provider set implementing `core/ports.py`, a legend
-file, a `class_codes` key in `crops.yaml`, and an entry in `PROVIDER_SETS` (`app.py`). The core stays the same.
+Another region is a new provider set implementing `core/ports.py`, a `class_codes` key in `crops.yaml`,
+and an entry in `PROVIDER_SETS` (`app.py`).
 
 ## API
 
 | Method | Path | |
 |---|---|---|
-| GET | `/api/config` | region outline, roles, crops, rules, settings, attributions |
-| POST | `/api/field` | `{"field": {"type": "polygon", "geometry": GeoJSON}}`; validates (inside county, size) |
-| GET | `/api/field/{id}/history?corrections={"2024":"peas"}` | crop per year, share, uncertainty, detected rotation |
-| GET | `/api/field/{id}/climate` | monthly rainfall and range, crop-year totals, temperature, frost days |
-| GET | `/api/field/{id}/vegetation/year/{y}` | warms one year of NDVI (used for progress) |
-| GET | `/api/field/{id}/vegetation` | NDVI series, gaps, bare periods |
-| GET | `/api/field/{id}/strategies?plan_length=3&alternatives=3&corrections=…` | existing + alternatives |
-| GET | `/api/overlay/{year}.png` / `.json` | county crop-type map overlay and legend |
+| GET | `/api/config` | region, roles, crops, rules, warnings, settings (with basis), sources, measures |
+| POST | `/api/field` | `{"field": {"type": "polygon", "geometry": GeoJSON}}`; validates; starts warming slow sources |
+| GET | `/api/field/{id}/strategies?inputs={...}` | the screen: headline, current rotation and options with verdicts, details |
+| GET | `/api/field/{id}/history?corrections={...}` | crop per year, detected rotation |
+| GET | `/api/field/{id}/climate` | rain and heat evidence (US units) |
+| GET | `/api/field/{id}/station` | grid weather against the nearest long-record station |
+| GET | `/api/field/{id}/soil` · `/slope` · `/slope.png` · `/slope_map.json` | soil, slope, slope map |
+| GET | `/api/field/{id}/vegetation` (`/years`, `/year/{y}`) | Sentinel-2 greenness, bare periods |
+| GET | `/api/region/context` | county drought history |
+
+`inputs` is one JSON object, every key optional: `corrections`, `priorities`, `dry_mode`, `exclude`,
+`keep`, `plan_length`, `ph`, `tillage`, `yields`, `rain_pct`, `temp_f` (brief section 7).

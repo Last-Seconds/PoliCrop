@@ -1,8 +1,7 @@
-"""Generate-and-filter: role sequences -> filled with crops -> hard rules -> a spread of distances.
+"""Generate-and-filter: role sequences -> filled with crops -> hard rules.
 
-Nothing here ranks strategies by quality. Distance from the existing rotation
-is a description of how much would change, and is used only to pick
-alternatives that differ by different amounts.
+Every candidate carries its distance from the current rotation (how much would
+change). Judging and choosing among candidates happens in compare.py / plan.py.
 """
 from __future__ import annotations
 
@@ -14,7 +13,6 @@ from dataclasses import dataclass, field
 from ..content import Content, Crop, SeasonWindow
 from .model import Strategy, make_steps
 from .rules import Rule
-from .scoring import Scorer, assess
 
 UNKNOWN_ROLE = "unknown"
 
@@ -38,17 +36,21 @@ class CropPool:
 def build_pool(area_counts: dict[int, int], content: Content, classification: str,
                years: list[int], radius_km: float) -> CropPool:
     min_share = float(content.settings["crop_pool.min_share"])
-    crop_pixels: Counter = Counter()
-    for code, n in area_counts.items():
-        crop = content.crop_for_code(classification, code)
-        if crop:
-            crop_pixels[crop.id] += n
-    total = sum(crop_pixels.values())
-    shares = {cid: n / total for cid, n in crop_pixels.items()} if total else {}
-    crops = [c for c in content.crops if c.pool == "always" or shares.get(c.id, 0.0) >= min_share]
+    table_codes = {code for c in content.crops for code in c.codes(classification)}
+    code_pixels = {code: n for code, n in area_counts.items() if code in table_codes}
+    total = sum(code_pixels.values())
+    shares: dict[str, float] = {}
+    if total:
+        for c in content.crops:
+            n = sum(code_pixels.get(code, 0) for code in c.presence_codes(classification))
+            if n:
+                shares[c.id] = n / total
+    # Offered crops only: history-only crops (dry beans, alfalfa) are never generated.
+    crops = [c for c in content.offered_crops() if c.pool == "always" or shares.get(c.id, 0.0) >= min_share]
     yr = f"{years[0]}–{years[-1]}" if len(years) > 1 else (str(years[0]) if years else "?")
-    desc = (f"Crops covering at least {min_share:.1%} of crop-table cropland within {radius_km:g} km "
-            f"of the field in the crop-type map ({yr}), plus crops always offered (cover crops).")
+    desc = (f"Crops covering at least {min_share:.1%} of cropland within {radius_km:g} km of the field in the "
+            f"USDA crop map ({yr}), plus a cover crop. The map cannot tell winter from spring peas or canola, "
+            "so both are offered where the map shows the crop.")
     return CropPool(crops, {k: round(v, 4) for k, v in shares.items()}, desc, years)
 
 
@@ -88,77 +90,61 @@ def canonical(crop_ids: tuple[str, ...]) -> tuple[str, ...]:
 
 
 def describe_differences(existing: list[Crop], candidate: list[Crop], content: Content) -> tuple[list[str], str]:
-    def short(role: str) -> str:
-        return content.role(role).short_label if content.has_role(role) else "unclassified land"
-
+    """Plain-words differences, per year and as one short phrase."""
     details, phrases = [], []
-    ex_roles = Counter(c.role for c in existing)
-    ca_roles = Counter(c.role for c in candidate)
-    changed_role_positions: dict[str, list[int]] = defaultdict(list)
-    same_role_swaps: list[int] = []
     for i, (e, c) in enumerate(zip(existing, candidate), start=1):
         if e.id == c.id:
             continue
-        if e.role == c.role:
-            details.append(f"Year {i}: {c.name} instead of {e.name} (both {short(c.role)})")
-            same_role_swaps.append(i)
-        else:
-            details.append(f"Year {i}: {c.name} ({short(c.role)}) instead of {e.name} ({short(e.role)})")
-            changed_role_positions[c.role].append(i)
-
-    def years(ps: list[int]) -> str:
-        return ("year " + str(ps[0])) if len(ps) == 1 else ("years " + ", ".join(map(str, ps[:-1])) + f" and {ps[-1]}")
-
-    for role, ps in changed_role_positions.items():
-        article = "an" if short(role)[0] in "aeiou" else "a"
-        if ex_roles[role] == 0:
-            phrases.append(f"adds {article} {short(role)} in {years(ps)}")
-        else:
-            article = "an" if short(role)[0] in "aeiou" else "a"
-            phrases.append(f"{article} {short(role)} in {years(ps)} too ({ca_roles[role]} {short(role)} years "
-                           f"instead of {ex_roles[role]})")
-    for role, n in ex_roles.items():
-        if ca_roles[role] == 0:
-            phrases.append(f"drops the {short(role)}")
-    if same_role_swaps and not changed_role_positions:
-        phrases.append(f"same crop types, different crop in {years(same_role_swaps)}")
-    elif same_role_swaps:
-        phrases.append(f"a different crop of the same type in {years(same_role_swaps)}")
-    summary = "; ".join(phrases)
-    return details, (summary[:1].upper() + summary[1:]) if summary else "Same as the existing rotation"
+        details.append(f"Year {i}: {c.name.lower()} instead of {e.name.lower()}")
+        phrases.append(f"{c.name.lower()} instead of {e.name.lower()}")
+    if not phrases:
+        return details, "Same as your current rotation"
+    if len(phrases) <= 2:
+        summary = " and ".join(phrases)
+    else:
+        rest = len(phrases) - 2
+        summary = f"{phrases[0]}, {phrases[1]} and {rest} more change{'s' if rest > 1 else ''}"
+    return details, summary[:1].upper() + summary[1:]
 
 
 @dataclass
-class GenerationResult:
-    existing: Strategy
-    alternatives: list[Strategy]
+class Candidate:
+    strategy: Strategy
+    crops: list[Crop]  # aligned to the current rotation
+    prevalence: float  # how common its crops are nearby (tie-break before nearby use exists)
+
+
+@dataclass
+class Enumeration:
+    candidates: list[Candidate]
     stats: dict
-    pool: CropPool
 
 
-def _check(strategy: Strategy, rules: list[Rule], content: Content) -> None:
+def check_rules(strategy: Strategy, rules: list[Rule], content: Content) -> None:
     strategy.rule_results = [r.check(strategy, content) for r in rules]
 
 
-def generate(existing_crops: list[Crop], pool: CropPool, content: Content, rules: list[Rule],
-             scorers: list[Scorer], first_harvest_year: int, alternatives_wanted: int | None = None,
-             context: dict | None = None) -> GenerationResult:
+def enumerate_candidates(existing_crops: list[Crop], pool: CropPool, content: Content, rules: list[Rule],
+                         first_harvest_year: int, exclude: set[str] | None = None,
+                         keep: set[str] | None = None) -> Enumeration:
     s = content.settings
     weights = dict(s["generation.distance_weights"])
     default_window = SeasonWindow.parse(s["generation.default_step_window"], "settings generation.default_step_window")
     max_candidates = int(s["generation.max_candidates"])
-    k_wanted = int(alternatives_wanted or s["generation.alternatives_shown"])
     n = len(existing_crops)
-    context = context or {}
+    exclude = set(exclude or ())
+    keep = {k for k in (keep or ()) if content.has_crop(k)}
 
-    existing = Strategy("existing", "existing", make_steps(existing_crops, first_harvest_year, default_window))
-    existing.label = "Existing rotation (as detected)"
-    existing.summary = "Your current rotation, continued as it is"
-    _check(existing, rules, content)
-    assess(existing, context, content, scorers)
-
+    crops = [c for c in pool.crops if c.id not in exclude]
+    for k in keep:  # a crop the farmer wants kept is offered even if the map does not show it nearby
+        kc = content.crop(k)
+        if kc.generate and kc not in crops and kc.id not in exclude:
+            crops.append(kc)
     gen_roles = {r.id for r in content.roles if r.generate}
-    by_role = pool.by_role(gen_roles)
+    by_role: dict[str, list[Crop]] = defaultdict(list)
+    for c in crops:
+        if c.role in gen_roles:
+            by_role[c.role].append(c)
     role_ids = sorted(r for r in gen_roles if by_role.get(r))
     ex_roles = [c.role for c in existing_crops]
 
@@ -173,9 +159,9 @@ def generate(existing_crops: list[Crop], pool: CropPool, content: Content, rules
     seen: set[tuple[str, ...]] = {canonical(tuple(c.id for c in existing_crops))}
     generated = 0
     truncated = False
-    passers: list[tuple[float, float, int, Strategy, list[Crop]]] = []
+    out: list[Candidate] = []
     fail_reasons: Counter = Counter()
-    order = 0
+    skipped_keep = 0
     for hd in sorted(groups):
         used = 0
         for seq in groups[hd]:
@@ -196,6 +182,9 @@ def generate(existing_crops: list[Crop], pool: CropPool, content: Content, rules
                 if key in seen:
                     continue
                 seen.add(key)
+                if keep and not keep <= set(ids):
+                    skipped_keep += 1
+                    continue
                 used += 1
                 generated += 1
                 aligned, d = best_alignment(existing_crops, list(combo), weights)
@@ -203,79 +192,28 @@ def generate(existing_crops: list[Crop], pool: CropPool, content: Content, rules
                     continue
                 cand = Strategy(f"c{generated}", "generated", make_steps(aligned, first_harvest_year, default_window),
                                 distance=d)
-                _check(cand, rules, content)
+                check_rules(cand, rules, content)
                 if not cand.passed:
                     for r in cand.rule_results:
                         if not r.passed:
-                            fail_reasons[r.label] += 1
+                            fail_reasons[r.code or r.label] += 1
                     continue
                 prevalence = sum(math.log(max(pool.shares.get(c.id, 0.0), 1e-3)) for c in aligned) / n
-                order += 1
-                passers.append((d, -prevalence, order, cand, aligned))
+                out.append(Candidate(cand, aligned, prevalence))
             if used >= budget:
                 break
-
-    chosen = _spread(passers, k_wanted)
-    labels = _labels(len(chosen))
-    alternatives = []
-    for idx, (d, _, _, cand, aligned) in enumerate(chosen):
-        cand.id = "ABCDEFGHIJ"[idx] if idx < 10 else f"S{idx + 1}"
-        cand.label = f"Alternative {cand.id}: {labels[idx]}"
-        cand.differences, cand.summary = describe_differences(existing_crops, aligned, content)
-        assess(cand, context, content, scorers)
-        alternatives.append(cand)
 
     stats = {
         "plan_length": n,
         "roles_used": role_ids,
+        "crops_used": [c.id for c in crops],
         "candidates_generated": generated,
-        "candidates_passed": len(passers),
-        "candidates_failed": generated - len(passers),
+        "candidates_passed": len(out),
+        "candidates_failed": generated - len(out),
         "failures_by_rule": dict(fail_reasons),
         "truncated": truncated,
         "max_candidates": max_candidates,
-        "selection": (
-            "Alternatives are picked to differ from the existing rotation by different amounts "
-            "(spread of distance values). Among candidates at the same distance, the one using crops "
-            "most common in the surrounding area is shown. This is not a ranking."
-        ),
+        "excluded": sorted(exclude),
+        "kept": sorted(keep),
     }
-    return GenerationResult(existing, alternatives, stats, pool)
-
-
-def _spread(passers: list, k: int) -> list:
-    if not passers or k <= 0:
-        return []
-    by_d: dict[float, list] = defaultdict(list)
-    for p in passers:
-        by_d[round(p[0], 6)].append(p)
-    for lst in by_d.values():
-        lst.sort(key=lambda p: (p[1], p[2]))
-    ds = sorted(by_d)
-    if k == 1:
-        targets = [ds[0]]
-    else:
-        targets = [ds[round(i * (len(ds) - 1) / (k - 1))] for i in range(k)]
-    chosen, used_ids, used_roles = [], set(), set()
-    for t in targets:
-        # nearest distance to the target that still has an unused candidate
-        for d in sorted(ds, key=lambda x: (abs(x - t), x)):
-            pick = next((p for p in by_d[d] if p[3].crop_ids not in used_ids and p[3].roles not in used_roles), None)
-            pick = pick or next((p for p in by_d[d] if p[3].crop_ids not in used_ids), None)
-            if pick:
-                chosen.append(pick)
-                used_ids.add(pick[3].crop_ids)
-                used_roles.add(pick[3].roles)
-                break
-    chosen.sort(key=lambda p: (p[0], p[2]))
-    return chosen
-
-
-def _labels(k: int) -> list[str]:
-    if k == 1:
-        return ["a change"]
-    if k == 2:
-        return ["smaller change", "larger change"]
-    if k == 3:
-        return ["small change", "moderate change", "large change"]
-    return [f"change level {i + 1} of {k}" for i in range(k)]
+    return Enumeration(out, stats)

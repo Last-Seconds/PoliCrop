@@ -26,6 +26,13 @@ def main() -> None:
     feats = json.loads((DATA_DIR / "demo_fields.geojson").read_text())["features"]
     if args.only:
         feats = [feats[args.only - 1]]
+    try:
+        t = time.time()
+        ctx = svc.region_context()
+        print(f"region context: drought {'ok' if 'drought' in ctx else ctx.get('drought_error')}, soil moisture "
+              f"{'ok' if 'soil_moisture' in ctx else ctx.get('soil_moisture_error')} ({time.time() - t:.0f}s)")
+    except Exception as exc:
+        print(f"region context failed: {exc}")
     ov = svc.providers.overlay
     if ov:
         for y in ov.overlay_years()[-1:]:
@@ -41,9 +48,19 @@ def main() -> None:
         t = time.time()
         c = svc.climate(f)
         print(f"[{name}] climate: {c['record']} ({time.time() - t:.0f}s)")
+        t = time.time()
+        svc.soil(f)
+        print(f"[{name}] soil ({time.time() - t:.0f}s)")
         st = svc.strategies(f, history=h)
-        print(f"[{name}] strategies: existing={[s['crop'] for s in st['existing']['steps']]} "
-              f"alts={[[s['crop'] for s in a['steps']] for a in st['alternatives']]}")
+        print(f"[{name}] strategies: current={[s['crop'] for s in st['current']['steps']]} "
+              f"options={[[s['crop'] for s in a['steps']] for a in st['options']]}")
+        t = time.time()
+        for fn in (svc.slope, svc.station, svc.greenness_history):
+            try:
+                fn(f)
+                print(f"[{name}] {fn.__name__} ({time.time() - t:.0f}s)")
+            except Exception as exc:
+                print(f"[{name}] {fn.__name__} failed: {exc}")
         if not args.skip_vegetation:
             for y in svc.vegetation_years():
                 t = time.time()

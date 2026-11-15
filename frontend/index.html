@@ -13,105 +13,117 @@
     <div class="brand">
       <span class="logo" aria-hidden="true">▦</span>
       <span class="name">Field Shift</span>
-      <span class="tag-prov" title="Version 0: the agronomy content (crop table, rules, thresholds) is provisional.">v0 · provisional content</span>
     </div>
-    <div class="region" id="region-name">Loading region…</div>
+    <nav class="tabs" role="tablist" aria-label="Pages">
+      <button type="button" role="tab" id="tab-field" aria-selected="true" aria-controls="page-field">Your field</button>
+      <button type="button" role="tab" id="tab-about" aria-selected="false" aria-controls="view-about">About this area</button>
+    </nav>
   </header>
 
-  <!-- State 1: choose a field -->
-  <main id="view-map" class="view">
-    <div id="map" class="map" aria-label="Map of the region"></div>
-    <aside class="panel" id="map-panel">
-      <h1>Explore crop rotations for one field</h1>
-      <p class="lede">Draw the outline of your field on the map. The app reads its crop history, weather and
-        vegetation from public satellite and weather data, and lays out alternative rotations next to your current one.
-        It supports your judgement; it does not replace it.</p>
-      <div class="step">
-        <button id="btn-draw" class="btn primary" type="button">Draw field outline</button>
-        <p class="hint">Click to place corners; click the first corner to finish. Zoom in close for accuracy.</p>
-      </div>
-      <div id="field-error" class="error" role="alert" hidden></div>
-      <div class="step">
-        <h2>Or try a demo field</h2>
-        <ul id="demo-list" class="demo-list"><li class="muted">Loading…</li></ul>
-      </div>
-      <div class="step">
-        <label class="toggle"><input type="checkbox" id="chk-overlay"> Show crop-type map <span id="overlay-year"></span></label>
-        <div id="overlay-legend" class="legend" hidden></div>
-      </div>
-    </aside>
-  </main>
-
-  <!-- State 2: field report -->
-  <main id="view-report" class="view" hidden>
-    <div class="report-grid">
-      <aside class="report-side">
-        <button id="btn-back" class="btn" type="button">← Choose another field</button>
-        <div id="mini-map" class="mini-map" aria-label="Your field"></div>
-        <div id="field-facts" class="facts"></div>
-        <nav class="toc" aria-label="Sections">
-          <a href="#sec-history">Crop history</a>
-          <a href="#sec-rain-month">Rainfall through the year</a>
-          <a href="#sec-rain-year">Rainfall over the years</a>
-          <a href="#sec-temp">Temperature</a>
-          <a href="#sec-veg">Vegetation</a>
-          <a href="#sec-strategies">Strategies</a>
-        </nav>
+  <div id="page-field">
+    <!-- Screen 1: choose a field -->
+    <main id="view-map" class="view">
+      <div id="map" class="map" aria-label="Map of the area"></div>
+      <aside class="panel" id="map-panel">
+        <h1>Would a different rotation suit your field?</h1>
+        <p class="lede">Choose your field on the map. Field Shift reads its crop history, weather and soil from public
+          satellite and survey data, and puts your current rotation beside three options, with what each would change and why.
+          It supports your judgement; it does not replace it.</p>
+        <div class="step">
+          <h2>Tap your field on the map</h2>
+          <p class="hint">Zoom in and tap inside your field. Its outline is traced from the USDA crop map; you check it before going on.</p>
+          <div id="pick-result" class="pick-result" aria-live="polite" hidden></div>
+        </div>
+        <div id="field-error" class="error" role="alert" hidden></div>
+        <div class="step">
+          <h2>Or draw it</h2>
+          <button id="btn-draw" class="btn" type="button">Draw your field</button>
+          <p class="hint" id="draw-hint">Tap to place corners; tap the first corner again to finish.</p>
+        </div>
+        <div class="step">
+          <h2>Or try an example field</h2>
+          <ul id="demo-list" class="demo-list"><li class="muted">Loading…</li></ul>
+        </div>
+        <div class="step">
+          <label class="toggle"><input type="checkbox" id="chk-overlay"> Show the crop map <span id="overlay-year"></span></label>
+          <div id="overlay-legend" class="legend" hidden></div>
+        </div>
       </aside>
+    </main>
 
-      <div class="report-main">
-        <section id="sec-history" class="card">
-          <header><h2>Crop history</h2><span class="tag-prov" id="hist-prov" title="The uncertainty threshold is provisional.">provisional threshold</span></header>
-          <p class="caption">Which crop the USDA crop-type map shows on most of your field each year; click a year to correct it.</p>
-          <div class="body" id="history-body"><div class="loading">Reading crop maps for each year…</div></div>
+    <!-- Screen 2: this field -->
+    <main id="view-field" class="view" hidden>
+      <div class="page">
+        <div class="field-head">
+          <button id="btn-back" class="btn small-btn" type="button">← Choose another field</button>
+          <h1 id="field-title">Your field</h1>
+          <p id="field-rotation" class="field-rotation"></p>
+          <ul id="field-notes" class="field-notes"></ul>
+        </div>
+
+        <section aria-labelledby="h-options">
+          <div id="headline" class="headline" aria-live="polite"></div>
+          <div class="options-bar">
+            <h2 id="h-options">Your rotation and three options</h2>
+            <div class="adjust-wrap">
+              <span id="adjust-summary" class="adjust-summary"></span>
+              <button id="btn-adjust" class="btn" type="button" aria-haspopup="dialog">Adjust</button>
+            </div>
+          </div>
+          <div id="cards" class="cards"><div class="loading">Reading your field: crop history, weather and soil…</div></div>
+          <div class="more-wrap">
+            <button id="btn-more" class="btn" type="button" hidden>Show more options</button>
+          </div>
+          <div id="more-cards" class="cards" hidden></div>
         </section>
 
-        <section id="sec-rain-month" class="card">
-          <header><h2>Rainfall through the year</h2></header>
-          <p class="caption">Average rain and snow (as water) for each month, with the driest and wettest year's value for that month.</p>
-          <div class="body" id="rain-month-body"><div class="loading">Loading NASA POWER weather…</div></div>
-        </section>
-
-        <section id="sec-rain-year" class="card">
-          <header><h2>Rainfall over the years</h2></header>
-          <p class="caption">Total rain and snow (as water) in each crop year, September to August, labelled like the crop history.</p>
-          <div class="body" id="rain-year-body"><div class="loading">Loading…</div></div>
-        </section>
-
-        <section id="sec-temp" class="card">
-          <header><h2>Temperature</h2></header>
-          <p class="caption">Average daily high and low for each month, and how many days each crop year the low fell below 0 °C.</p>
-          <div class="body" id="temp-body"><div class="loading">Loading…</div></div>
-        </section>
-
-        <section id="sec-veg" class="card">
-          <header><h2>Vegetation</h2><span class="tag-prov" title="The 'bare' threshold and gap length are provisional.">provisional threshold</span></header>
-          <p class="caption">How green your field looked in each usable Sentinel-2 satellite image (NDVI), with periods when nothing was growing shaded.</p>
-          <div class="body" id="veg-body"><div class="loading">Reading satellite images for your field…</div></div>
-        </section>
-
-        <section id="sec-strategies" class="card">
-          <header><h2>Strategies</h2><span class="tag-prov" title="Crop table, roles and rules are provisional placeholders.">provisional content</span></header>
-          <p class="caption">Your current rotation next to generated alternatives that change it by different amounts, unranked, with what is not yet assessed.</p>
-          <div class="controls" id="strategy-controls"></div>
-          <div class="body" id="strategies-body"><div class="loading">Waiting for crop history…</div></div>
-        </section>
+        <details id="evidence" class="evidence">
+          <summary><h2>What we know about your field</h2><span class="muted small">Crop history, rain and heat, greenness, soil and slope</span></summary>
+          <details class="ev" data-sec="history" id="ev-history-d">
+            <summary>Crop history <span class="muted small">(you can fix it)</span></summary>
+            <div id="ev-history" class="ev-body"><div class="loading">Reading the crop map for each year…</div></div>
+          </details>
+          <details class="ev" data-sec="climate">
+            <summary>Rain and heat</summary>
+            <div id="ev-climate" class="ev-body"><div class="loading">Loading weather…</div></div>
+          </details>
+          <details class="ev" data-sec="veg">
+            <summary>Greenness and bare periods</summary>
+            <div id="ev-veg" class="ev-body"><p class="muted">Opens when you choose to see it: reading satellite images takes a while the first time.</p></div>
+          </details>
+          <details class="ev" data-sec="soil">
+            <summary>Soil and slope</summary>
+            <div id="ev-soil" class="ev-body"><div class="loading">Reading the soil survey…</div></div>
+          </details>
+        </details>
       </div>
+    </main>
+  </div>
+
+  <!-- Tab: About this area -->
+  <main id="view-about" class="view" hidden>
+    <div class="page about">
+      <h1>About this area</h1>
+      <details class="ev" open><summary>Whitman County and its weather</summary><div id="about-region" class="ev-body"></div></details>
+      <details class="ev"><summary>Looking ahead to 2050</summary><div id="about-outlook" class="ev-body"></div></details>
+      <details class="ev"><summary>Data sources</summary><div id="about-sources" class="ev-body"></div></details>
+      <details class="ev"><summary>How this works</summary><div id="about-how" class="ev-body"></div></details>
     </div>
   </main>
 
-  <footer class="footer">
-    <details>
-      <summary>Data sources and attributions</summary>
-      <ul id="attributions"></ul>
-    </details>
-    <details>
-      <summary>Provisional parameters</summary>
-      <p class="muted">These named thresholds are not decided yet; they live in <code>data/settings.yaml</code>.</p>
-      <table class="params" id="params"></table>
-    </details>
-    <p class="muted small">NASA Space Apps 2026 · Field Shift: Adapting Farms with NASA Data. Historical data only: no forecasts or projections.</p>
-  </footer>
+  <dialog id="adjust" class="adjust" aria-labelledby="adjust-title">
+    <form method="dialog" id="adjust-form">
+      <header class="adjust-head">
+        <h2 id="adjust-title">Adjust</h2>
+        <button class="btn small-btn" value="cancel" type="submit" aria-label="Close">✕</button>
+      </header>
+      <div class="adjust-body" id="adjust-body"></div>
+      <footer class="adjust-foot">
+        <button class="btn" type="button" id="adjust-reset">Reset to defaults</button>
+        <button class="btn primary" type="submit" value="apply" id="adjust-apply">Show results</button>
+      </footer>
+    </form>
+  </dialog>
 
   <div id="popover" class="popover" hidden></div>
 

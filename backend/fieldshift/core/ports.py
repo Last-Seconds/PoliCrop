@@ -38,11 +38,26 @@ class CropHistoryProvider(Protocol):
 @runtime_checkable
 class WeatherProvider(Protocol):
     def daily(self, lon: float, lat: float) -> dict:
-        """Longest available daily record for a point.
+        """Longest available daily record of complete years for a point.
 
         {"days": [{"date": "YYYY-MM-DD", "precip_mm": float|None,
                     "tmax_c": float|None, "tmin_c": float|None}, ...],
+         "calendar": "standard" | "365_day" (31 Dec dropped in leap years),
          "source": str, "spatial_resolution": str, "grid_cell": {...}|None}
+        """
+
+
+@runtime_checkable
+class SoilProvider(Protocol):
+    def soil(self, geometry: dict) -> dict:
+        """Soil map units inside the field with their area shares.
+
+        {"map_units": [{"mukey": str, "area_share": float (0-1),
+                        "aws0_100_mm": float|None, "aws0_150_mm": float|None,
+                        "name": str|None,
+                        "components": [{"name", "pct", "drainage", "slope_low", "slope_rep",
+                                        "slope_high", "hydgrp", "kw"}]}],
+         "source": str, "attributes_source": str|None, "attributes_error": str|None}
         """
 
 
@@ -67,3 +82,11 @@ class MapOverlayProvider(Protocol):
 
     def overlay_png(self, year: int) -> tuple[bytes, dict]:
         """(PNG bytes, {"bounds": [[south, west], [north, east]], "legend": [...], "year": int})"""
+
+
+class FieldBoundaryProvider(Protocol):
+    """Optional: find the field at a tapped point."""
+
+    def pick(self, lon: float, lat: float, **params) -> dict:
+        """A GeoJSON Feature (Polygon, WGS84) for the field at the point, with "properties".
+        Raises ValueError with a farmer-facing message when no field is found there."""

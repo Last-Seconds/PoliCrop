@@ -84,7 +84,39 @@ def create_field(body: dict = Body(...)):
     except FieldError as exc:
         _error(422, str(exc))
     _store_field(f)
+    _warm(f)
     return get_service().field_summary(f)
+
+
+_WARMING: set[str] = set()
+
+
+def _warm(f: FieldGeometry) -> None:
+    """Start the slow, cacheable fetches (weather, soil, crop history) as soon as a field exists."""
+    import threading
+    key = f.key()
+    if key in _WARMING:
+        return
+    _WARMING.add(key)
+    svc = get_service()
+
+    def run(fn):
+        try:
+            fn(f)
+        except Exception as exc:  # the section reports its own error later
+            log.info("warm-up %s failed: %s", getattr(fn, "__name__", fn), exc)
+
+    for fn in (svc.climate, svc.soil, svc.history):
+        threading.Thread(target=run, args=(fn,), daemon=True).start()
+
+
+@app.post("/api/pick")
+def pick(body: dict = Body(...)):
+    """Trace the field at a tapped point; the farmer confirms it before it becomes their field."""
+    try:
+        return get_service().pick_field(body.get("lon"), body.get("lat"))
+    except FieldError as exc:
+        _error(422, str(exc))
 
 
 @app.get("/api/field/{field_id}")
@@ -95,6 +127,44 @@ def field_info(field_id: str):
 @app.get("/api/field/{field_id}/history")
 def history(field_id: str, corrections: str | None = None):
     return _section(get_service().history, _load_field(field_id), _corrections(corrections))
+
+
+@app.get("/api/field/{field_id}/soil")
+def soil(field_id: str):
+    return _section(get_service().soil, _load_field(field_id))
+
+
+@app.get("/api/field/{field_id}/station")
+def station(field_id: str):
+    return _section(get_service().station, _load_field(field_id))
+
+
+@app.get("/api/field/{field_id}/greenness_history")
+def greenness_history(field_id: str):
+    return _section(get_service().greenness_history, _load_field(field_id))
+
+
+@app.get("/api/field/{field_id}/slope")
+def slope(field_id: str):
+    return _section(get_service().slope, _load_field(field_id))
+
+
+@app.get("/api/field/{field_id}/slope.png")
+def slope_png(field_id: str):
+    try:
+        png, meta = get_service().slope_png(_load_field(field_id))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log.exception("slope map failed")
+        _error(502, f"Slope map could not be made: {exc}")
+    return Response(png, media_type="image/png", headers={"Cache-Control": "public, max-age=86400",
+                                                          "X-Bounds": json.dumps(meta["bounds"])})
+
+
+@app.get("/api/field/{field_id}/slope_map.json")
+def slope_meta(field_id: str):
+    return _section(lambda: get_service().slope_png(_load_field(field_id))[1])
 
 
 @app.get("/api/field/{field_id}/climate")
@@ -122,11 +192,36 @@ def vegetation(field_id: str):
 
 
 @app.get("/api/field/{field_id}/strategies")
-def strategies(field_id: str, corrections: str | None = None,
-               plan_length: int | None = Query(None, ge=2, le=8),
-               alternatives: int | None = Query(None, ge=1, le=6)):
-    return _section(get_service().strategies, _load_field(field_id), _corrections(corrections),
-                    plan_length, alternatives)
+def strategies(field_id: str, inputs: str | None = None, corrections: str | None = None,
+               plan_length: int | None = Query(None, ge=2, le=8)):
+    """Options for a field. `inputs` is one JSON object of farmer inputs (brief section 7):
+    corrections, priorities, dry_mode, exclude, keep, plan_length, ph, tillage, yields, rain_pct, temp_f."""
+    raw: dict = {}
+    if inputs:
+        try:
+            raw = json.loads(inputs)
+        except json.JSONDecodeError:
+            _error(400, "inputs must be JSON.")
+        if not isinstance(raw, dict):
+            _error(400, "inputs must be a JSON object.")
+    if corrections and "corrections" not in raw:
+        raw["corrections"] = _corrections(corrections)
+    if plan_length and "plan_length" not in raw:
+        raw["plan_length"] = plan_length
+    return _section(get_service().strategies, _load_field(field_id), raw)
+
+
+@app.get("/api/region/context")
+def region_context():
+    return _section(get_service().region_context)
+
+
+@app.get("/api/region/outlook")
+def region_outlook():
+    try:
+        return get_service().outlook()
+    except FileNotFoundError as exc:
+        _error(404, str(exc))
 
 
 @app.get("/api/overlay/years")
