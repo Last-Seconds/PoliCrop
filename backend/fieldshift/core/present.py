@@ -558,7 +558,8 @@ def closed_card(opt: Option, current: Option, cautions: list[dict]) -> dict:
     h, hc, n = opt.strategy.harvests, current.strategy.harvests, len(opt.strategy.steps)
     harvest = None if (is_cur or h == hc) else f"{h} harvest{'s' if h != 1 else ''} in {n} years (now {hc})"
     out = {
-        "title": "Your rotation now" if is_cur else opt.strategy.label,
+        "title": "Your rotation now" if is_cur else option_name(opt),
+        "tag": None if is_cur else opt.strategy.label,
         "band": None if is_cur else BAND_LABELS[opt.band].capitalize(),
         "chips": [{"name": SHORT_NAMES.get(c.name, c.name), "role": c.role} for c in opt.crops],
         "verdicts": verdicts,
@@ -567,11 +568,26 @@ def closed_card(opt: Option, current: Option, cautions: list[dict]) -> dict:
         "more_cautions": max(0, len(cautions) - max(1, len([c for c in cautions if c.get("serious")]))),
         "harvest": harvest,
     }
-    # Long plans: the band, then the harvest line, give way (both stay in the details).
+    # Long plans: the name shortens to its first change, then the band and the harvest line give way, and
+    # last the name gives way to the letter (all stay in the details).
+    if not is_cur and closed_words(out) > CLOSED_MAX_WORDS:
+        out["title"] = short_option_name(opt)
     for key in ("band", "harvest"):
         if closed_words(out) > CLOSED_MAX_WORDS:
             out[key] = None
+    if not is_cur and closed_words(out) > CLOSED_MAX_WORDS:  # very long plans: the letter alone
+        out["title"], out["tag"] = opt.strategy.label, None
     return out
+
+
+def short_option_name(opt: Option) -> str:
+    """The first change and a count of the rest: “Winter peas instead of lentils and 2 more changes”."""
+    phrases = [re.sub(r"^Year \d+: ", "", d) for d in opt.strategy.differences]
+    if len(phrases) <= 1:
+        return option_name(opt)
+    rest = len(phrases) - 1
+    first = phrases[0][:1].upper() + phrases[0][1:]
+    return f"{first} and {rest} more change{'s' if rest > 1 else ''}"
 
 
 CLOSED_MAX_WORDS = 45
@@ -581,7 +597,7 @@ SHORT_MEASURE = {"water": "Water", "soil": "Soil", "nitrogen": "Nitrogen", "vari
 def closed_words(cl: dict) -> int:
     """Words on a closed card as the page shows it, including its fixed labels."""
     shown_cautions = cl.get("serious") or ([cl["caution"]] if cl["caution"] else [])
-    return word_count(cl["title"], cl["band"], [x["name"] for x in cl["chips"]], [v["label"] for v in cl["verdicts"]],
+    return word_count(cl["title"], cl.get("tag"), cl["band"], [x["name"] for x in cl["chips"]], [v["label"] for v in cl["verdicts"]],
                       [v["word"] for v in cl["verdicts"]], shown_cautions,
                       f"{cl['more_cautions']} more cautions" if cl["more_cautions"] else "", cl["harvest"],
                       "Why and details")
@@ -687,39 +703,59 @@ def card(opt: Option, res: PlanResult, content: Content) -> dict:
     }
 
 
-def headline(res: PlanResult, content: Content, rotation_text: str) -> list[str]:
-    """One sentence, 25 words or fewer, stating the finding (brief 3, S2). Notes about the crop map and the
-    current rotation breaking a rule live in the current rotation's card; settings notes in `settings_notes`."""
+HEADLINE_MAX_WORDS = 25
+
+
+def option_name(opt: Option) -> str:
+    """What an option is called on screen: what it changes compared with now (“Canola instead of chickpeas”).
+    The letter (“Option A”) stays as a small tag beside it."""
+    return opt.strategy.summary or opt.strategy.label
+
+
+def headline(res: PlanResult, content: Content, rotation_text: str, names: dict[str, str] | None = None) -> list[str]:
+    """The finding in one or two plain sentences, 25 words or fewer (brief 3, S2). Notes about the crop map and
+    the current rotation breaking a rule live in the current rotation's card; settings notes in `settings_notes`.
+    Only options on screen (not those behind “show more”) are named, by the name their card shows (`names`)."""
     o = res.outcomes
     top = MEASURE_LABELS[o["top_priority"]].lower()
+    names = names or {}
+
+    def _fit(x: Option, sentence) -> str:  # the name, or the letter when the name would make it too long
+        t = sentence(names.get(x.strategy.id, option_name(x)))
+        return t if word_count(t) <= HEADLINE_MAX_WORDS else sentence(x.strategy.label)
+
     if o["no_options"]:
         return ["No option passed the rules with the crops grown near this field and your settings."]
     shown_ids = {x.strategy.id for x in res.shown}
-    good = next((g for g in o["at_least_as_good"] if g in shown_ids), None)  # name only options on screen
+    good = next((g for g in o["at_least_as_good"] if g in shown_ids), None)
     if not o["holds_up"]:
         best = next((x for x in res.shown if x.verdicts[o["top_priority"]].value == BETTER), None)
         if best:
             if good == best.strategy.id:
-                return [f"{best.strategy.label} is better than now on {top}, your top priority, and no worse on "
-                        f"anything{_serious_clause(best)}."]
-            return [f"{best.strategy.label} is better than now on {top}, your top priority, but gives something up"
-                    f"{_serious_clause(best)}."]
+                return [_fit(best, lambda n: f"{n} is better than now on {top}, your top priority, and no worse on "
+                                             f"anything.{_serious_sentence(best)}")]
+            return [_fit(best, lambda n: f"{n} is better than now on {top}, your top priority, but gives "
+                                         f"something up.{_serious_sentence(best)}")]
     if good:
-        g = next(x for x in res.shown + res.more if x.strategy.id == good)
-        return [f"Your rotation holds up on {top}; {g.strategy.label} is at least as good on all four measures"
-                f"{_serious_clause(g)}."]
-    return [f"Your rotation holds up on {top}; the options trade one thing for another."]
+        g = next(x for x in res.shown if x.strategy.id == good)
+        return [_fit(g, lambda n: f"Your rotation holds up on {top}. {n} is at least as good on all four measures."
+                                  f"{_serious_sentence(g)}")]
+    return [f"Your rotation holds up on {top}. The options trade one thing for another."]
 
 
-def _serious_clause(o: Option) -> str:
+def _serious_sentence(o: Option) -> str:
     """Addendum 2, A1: an option with a serious caution is never praised without naming it."""
     ws = [w for w in o.warnings if w.serious]
     if not ws:
         return ""
-    tag = {"W6": "winter-kill risk", "W5": "chickpea heat risk"}.get(ws[0].code)
-    if ws[0].code == "W10":
-        tag = f"{ws[0].short.replace(' may be too dry here', '').lower()} may be too dry"
-    return f", but note {tag or ws[0].short.lower()}"
+    w = ws[0]
+    if w.code == "W6":
+        return " But note the winter-kill risk."
+    if w.code == "W5":
+        return " But note the chickpea heat risk."
+    if w.code == "W10":
+        return f" But note: {w.short[:1].lower() + w.short[1:].replace(' here', '')}."
+    return f" But note: {w.short[:1].lower() + w.short[1:]}."
 
 
 def _label_of(res: PlanResult, oid: str) -> str:
@@ -759,15 +795,16 @@ def present(res: PlanResult, content: Content, extra: dict) -> dict:
     cur_names = [c.name for c in res.current.crops]
     rot_text = rotation_words(cur_names)
     pr = res.priorities
+    options = [card(o, res, content) for o in res.shown]
     return {
         "status": "ok",
-        "headline": headline(res, content, rot_text),
+        "headline": headline(res, content, rot_text, {c["id"]: c["closed"]["title"] for c in options}),
         "settings_notes": settings_notes(res),
         "current_rotation_text": rot_text,
         "priorities": [{"id": m, "label": MEASURE_LABELS[m]} for m in pr],
         "measures": [{"id": m, "label": MEASURE_LABELS[m], "question": QUESTIONS[m]} for m in MEASURES],
         "current": current_card(res, content, rot_text, extra.get("caveats") or []),
-        "options": [card(o, res, content) for o in res.shown],
+        "options": options,
         "more": [card(o, res, content) for o in res.more],
         "kept": [card(o, res, content) for o in res.kept],
         "inputs": res.inputs.to_dict(content),

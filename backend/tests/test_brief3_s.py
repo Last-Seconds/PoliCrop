@@ -115,8 +115,32 @@ def test_serious_caution_never_first_and_options_differ(service, field, inputs):
         assert o["closed"]["serious"] == serious
 
 
-def test_headline_names_a_serious_caution(service, field):
-    s = service.strategies(field, {})
+def _named(o, text):
+    return o["closed"]["title"] in text or o["label"] in text
+
+
+@pytest.mark.parametrize("inputs", [{}, {"dry_mode": True}, {"priorities": ["nitrogen"]}])
+def test_headline_names_a_serious_caution(service, field, inputs):
+    s = service.strategies(field, inputs)
     for o in s["options"]:
-        if o["id"] in s["headline"][0] and any(c.get("serious") for c in o["cautions"]):
-            assert "but note" in s["headline"][0]
+        if _named(o, s["headline"][0]) and any(c.get("serious") for c in o["cautions"]):
+            assert "But note" in s["headline"][0]
+
+
+@pytest.mark.parametrize("inputs", [{}, {"dry_mode": True}, {"priorities": ["nitrogen"]}, {"plan_length": 6}])
+def test_headline_names_only_options_on_screen(service, field, inputs):
+    s = service.strategies(field, inputs)
+    h = s["headline"][0]
+    assert ";" not in h and "but:" not in h
+    for o in s["more"] + s["kept"]:
+        assert o["label"] not in h
+        if not any(_named(x, h) for x in s["options"]):
+            assert o["closed"]["title"] not in h
+
+
+def test_options_are_named_by_what_changes(service, field):
+    s = service.strategies(field, {})
+    assert s["current"]["closed"]["tag"] is None
+    for o in s["options"] + s["more"]:
+        assert o["closed"]["tag"] == o["label"] and o["closed"]["tag"].startswith("Option ")
+        assert " instead of " in o["closed"]["title"] or o["closed"]["title"].startswith("Same as")

@@ -18,7 +18,7 @@ from .core.geometry import FieldError, FieldGeometry, field_from_spec
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("fieldshift.api")
 
-app = FastAPI(title="Field Shift v0", version="0.0.1")
+app = FastAPI(title="Policrop", version="0.0.1")
 
 
 @app.middleware("http")

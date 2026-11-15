@@ -1,9 +1,9 @@
-/* Field Shift front end: choose a field -> the answer first, evidence one tap away. Plain JS, no build step. */
+/* Policrop front end: choose a field -> the answer first, evidence one tap away. Plain JS, no build step. */
 (() => {
   "use strict";
 
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const VERDICT = { 1: ["b", "▲", "Better"], 0: ["s", "●", "About the same"], "-1": ["w", "▼", "Worse"], null: ["n", "–", "Not assessed"] };
+  const VERDICT = { 1: ["b", "arrow-up", "Better"], 0: ["s", "equal", "About the same"], "-1": ["w", "arrow-down", "Worse"], null: ["n", "minus", "Not assessed"] };
   const state = {
     config: null, fieldId: null, recId: null, db: null, field: null, corrections: {}, inputs: {}, history: null, strategies: null,
     climate: null, soil: null, charts: {}, overlay: null, rendered: new Set(), vegLoading: false,
@@ -20,6 +20,35 @@
       else n.setAttribute(k, v === true ? "" : v);
     }
     for (const c of children.flat()) if (c != null && c !== false) n.append(c.nodeType ? c : document.createTextNode(String(c)));
+    return n;
+  };
+  // One icon set (Lucide, ISC licence), drawn inline at 16 px with stroke 2; see .ico in styles.css.
+  const ICONS = {
+    "alert": '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    "check": '<path d="M20 6 9 17l-5-5"/>',
+    "x": '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    "star": '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',
+    "arrow-up": '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+    "arrow-down": '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+    "arrow-left": '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+    "equal": '<line x1="5" x2="19" y1="9" y2="9"/><line x1="5" x2="19" y1="15" y2="15"/>',
+    "minus": '<path d="M5 12h14"/>',
+    "chevron-up": '<path d="m18 15-6-6-6 6"/>',
+    "chevron-down": '<path d="m6 9 6 6 6-6"/>',
+    "chevron-right": '<path d="m9 18 6-6-6-6"/>',
+    "info": '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+    "pencil": '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>',
+    "moon": '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+    "sun": '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+    "triangle": '<path d="M13.73 4a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>',
+  };
+  const icon = (name, cls = "") => {
+    const n = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    n.setAttribute("viewBox", "0 0 24 24");
+    n.setAttribute("class", `ico ${cls}`.trim());
+    n.setAttribute("aria-hidden", "true");
+    n.setAttribute("focusable", "false");
+    n.innerHTML = ICONS[name];
     return n;
   };
   const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -174,10 +203,10 @@
     const box = $("#save-box");
     if (!rec) { box.replaceChildren(); return; }
     if (rec.saved) {
-      box.replaceChildren(el("span", { id: "saved-mark", class: "saved-mark" }, "✓ saved"));
+      box.replaceChildren(el("span", { id: "saved-mark", class: "saved-mark" }, icon("check"), " saved"));
       return;
     }
-    box.replaceChildren(el("span", { id: "saved-mark", class: "saved-mark", hidden: true }, "✓ saved"),
+    box.replaceChildren(el("span", { id: "saved-mark", class: "saved-mark", hidden: true }, icon("check"), " saved"),
       el("button", { class: "btn", type: "button", "aria-label": "Save this field", onclick: () => {
         const input = el("input", { type: "text", maxlength: 120, value: suggestName(rec), "aria-label": "Name for this field" });
         box.replaceChildren(el("form", { class: "save-form", onsubmit: (e) => {
@@ -320,11 +349,11 @@
   async function loadFieldsFile(file) {
     if (!file) return;
     const refuse = (why) => fileMsg(`This file was not loaded, and nothing was changed: ${why}`, true);
-    if (file.size > MAX_FILE_BYTES) return refuse("it is larger than a Field Shift file can be (2 MB).");
+    if (file.size > MAX_FILE_BYTES) return refuse("it is larger than a Policrop file can be (2 MB).");
     let data;
-    try { data = JSON.parse(await file.text()); } catch { return refuse("it is not a readable Field Shift file."); }
-    if (!isObj(data) || data.format !== FILE_FORMAT || !Array.isArray(data.fields)) return refuse("it is not a Field Shift fields file.");
-    if (typeof data.version !== "number" || data.version > FS_VERSION) return refuse("it was made by a newer version of Field Shift.");
+    try { data = JSON.parse(await file.text()); } catch { return refuse("it is not a readable Policrop file."); }
+    if (!isObj(data) || data.format !== FILE_FORMAT || !Array.isArray(data.fields)) return refuse("it is not a Policrop fields file.");
+    if (typeof data.version !== "number" || data.version > FS_VERSION) return refuse("it was made by a newer version of Policrop.");
     if (!data.fields.length) return refuse("it holds no fields.");
     if (data.fields.length > 200) return refuse("it holds more fields than one file can (200).");
     const recs = [];
@@ -619,17 +648,18 @@
     $("#compare").replaceChildren(head, ...rows.map((c) => {
       const isCur = c.kind === "existing";
       const name = isCur ? "Now" : c.closed.title;
+      const tag = isCur ? null : c.closed.tag;
       const crops = c.closed.chips.map((x) => x.name).join(" → ");
       const said = (isCur ? "the rotation every option is compared with" :
         c.closed.verdicts.map((v) => `${v.label} ${v.word}`).join(", ")) +
         (c.cautions.some((x) => x.serious) ? `; caution: ${c.cautions.filter((x) => x.serious).map((x) => x.short).join("; ")}` : "");
-      return el("button", { class: `cmp-row ${isCur ? "cur" : ""}`, type: "button", "aria-label": `${name}: ${crops}; ${said}. Open its card.`,
+      return el("button", { class: `cmp-row ${isCur ? "cur" : ""}`, type: "button", "aria-label": `${tag ? tag + ", " : ""}${name}: ${crops}; ${said}. Open its card.`,
         onclick: () => openCard(c.id) },
-        el("span", { class: "cmp-title" }, el("strong", {}, name), c.kept ? " ★" : "",
-          c.cautions.some((x) => x.serious) ? el("span", { class: "cmp-warn", title: c.cautions.filter((x) => x.serious).map((x) => x.short).join("; ") }, " ⚠") : null,
+        el("span", { class: "cmp-title" }, tag ? [el("span", { class: "opt-tag" }, tag), " "] : null, el("strong", {}, name), c.kept ? [" ", icon("star", "filled kept-star")] : "",
+          c.cautions.some((x) => x.serious) ? el("span", { class: "cmp-warn", title: c.cautions.filter((x) => x.serious).map((x) => x.short).join("; ") }, " ", icon("alert")) : null,
           " ", el("span", { class: "cmp-crops" }, crops)),
         ...c.closed.verdicts.map((v) => el("span", { class: `cmp-v ${isCur ? "n" : vcls(v.value)}`, "aria-hidden": "true" },
-          isCur ? "–" : `${v.symbol} ${v.word.replace(/^about the same/, "same")}`)));
+          isCur ? icon("minus") : [icon(VERDICT[v.value == null ? null : v.value][1]), v.word.replace(/^about the same/, "same")])));
     }));
   }
 
@@ -665,14 +695,15 @@
       toggle.setAttribute("aria-expanded", String(!det.hidden));
       toggle.textContent = det.hidden ? "Why and details" : "Hide details";
     } }, "Why and details");
-    return el("article", { class: `opt ${isCur ? "current" : ""}`, id: `card-${c.id}`, tabindex: "-1", "aria-label": cl.title },
-      el("div", { class: "opt-head" }, el("h3", {}, cl.title), cl.band ? el("span", { class: "band" }, cl.band) : null,
-        c.kept ? el("span", { class: "kept-mark" }, "★ kept") : null),
+    return el("article", { class: `opt ${isCur ? "current" : ""}`, id: `card-${c.id}`, tabindex: "-1", "aria-label": cl.tag ? `${cl.tag}, ${cl.title}` : cl.title },
+      el("div", { class: "opt-head" }, el("div", { class: "opt-title" }, cl.tag ? el("span", { class: "opt-tag" }, cl.tag) : null, el("h3", {}, cl.title)),
+        cl.band ? el("span", { class: "band" }, cl.band) : null,
+        c.kept ? el("span", { class: "kept-mark" }, icon("star", "filled"), " kept") : null),
       el("ol", { class: "chips", "aria-label": "Crops, year by year" }, cl.chips.map((ch) =>
         el("li", { class: "chip", style: `--role:${roleColor(ch.role)}` }, ch.name))),
       isCur ? el("p", { class: "cur-note" }, "Every option is compared with this.") :
         el("ul", { class: "vlines" }, cl.verdicts.map((v) => el("li", {}, el("span", { class: "vl" }, v.label),
-          el("span", { class: `verdict ${vcls(v.value)}` }, `${v.symbol} ${v.word}`)))),
+          el("span", { class: `verdict ${vcls(v.value)}` }, icon(VERDICT[v.value == null ? null : v.value][1]), v.word)))),
       serious.length ? el("ul", { class: "cautions serious" }, serious.map((x) => el("li", { class: "caution serious" }, x.short))) : null,
       (first || restBtn) ? el("div", { class: "caution-line" }, first ? el("span", { class: "caution" }, first.short) : null,
         restBtn ? " " : null, restBtn, restList) : null,
@@ -735,7 +766,7 @@
         c.notes.change_details && c.notes.change_details.length ? list(c.notes.change_details) : null])),
       sec("What we don't know", list(f.unknowns), expander(`see all (${d.unknowns.length})`, () => [list(d.unknowns)])),
       sec("Check locally", list(f.check), expander("see all", () => [list(d.check),
-        el("ul", { class: "rules-list" }, c.rules.map((r) => el("li", {}, `${r.passed ? "✓" : "✗"} ${r.label}${r.passed ? "" : `: ${r.reason}`}`)))])),
+        el("ul", { class: "rules-list" }, c.rules.map((r) => el("li", {}, el("span", { class: r.passed ? "pass" : "fail" }, icon(r.passed ? "check" : "x")), el("span", { class: "visually-hidden" }, r.passed ? "Passes: " : "Fails: "), `${r.label}${r.passed ? "" : `: ${r.reason}`}`)))])),
       el("div", { class: "card-actions" },
         isCur ? null : keepControl(c),
         el("button", { class: "btn", type: "button", onclick: () => printOption(c, s) }, "Print this option")),
@@ -755,14 +786,14 @@
         box.replaceChildren(el("button", { class: "btn", type: "button", onclick: () => {
           updateRec({ kept: [...(currentRec().kept || []), { crops: [...c.crop_ids], note: "" }] });
           draw(); loadStrategies();
-        } }, "☆ Keep this option"));
+        } }, icon("star"), " Keep this option"));
         return;
       }
       const note = el("input", { type: "text", maxlength: 300, value: k.note || "", placeholder: "A note, if you like", "aria-label": "Note on this kept option" });
       note.addEventListener("change", () => {
         updateRec({ kept: currentRec().kept.map((x) => (sameRotation(x.crops, c.crop_ids) ? { ...x, note: note.value } : x)) });
       });
-      box.replaceChildren(el("p", { class: "small" }, "★ Kept with this field."), note,
+      box.replaceChildren(el("p", { class: "small" }, icon("star", "filled"), " Kept with this field."), note,
         el("button", { class: "btn", type: "button", onclick: () => {
           updateRec({ kept: currentRec().kept.filter((x) => !sameRotation(x.crops, c.crop_ids)) });
           draw(); loadStrategies();
@@ -779,20 +810,20 @@
     const area = $("#print-area");
     const kept = (rec.kept || []).find((k) => sameRotation(k.crops, c.crop_ids));
     area.replaceChildren(
-      el("h1", {}, "Field Shift: one option for one field"),
+      el("h1", {}, "Policrop: one option for one field"),
       el("p", {}, `${rec.saved ? rec.name + ", " : ""}${s.field.acres.toLocaleString()} acres. Now: ${s.current_rotation_text}. Printed ${new Date().toLocaleDateString()}.`),
-      el("h2", {}, c.kind === "existing" ? "Your current rotation" : `${c.closed.title}: ${c.closed.chips.map((x) => x.name).join(" → ")}`),
+      el("h2", {}, c.kind === "existing" ? "Your current rotation" : `${c.closed.tag ? c.closed.tag + ", " : ""}${c.closed.title}: ${c.closed.chips.map((x) => x.name).join(" → ")}`),
       kept && kept.note ? el("p", {}, `Your note: ${kept.note}`) : null,
       el("p", {}, c.first.why),
       el("h3", {}, "Compared with your current rotation"),
       el("table", { class: "print-table" }, el("tbody", {}, c.lines.map((l) => el("tr", {},
-        el("th", {}, l.label), el("td", {}, c.kind === "existing" ? "" : `${VERDICT[l.verdict == null ? null : l.verdict][1]} ${l.verdict_word}`),
+        el("th", {}, l.label), el("td", {}, c.kind === "existing" ? "" : [icon(VERDICT[l.verdict == null ? null : l.verdict][1]), " ", l.verdict_word]),
         el("td", {}, l.value_text + (l.now_text ? `. Now: ${l.now_text.charAt(0).toLowerCase()}${l.now_text.slice(1)}` : "") + "."))))),
       el("h3", {}, "Cautions"),
       c.cautions.length ? el("ul", {}, c.cautions.map((x) => el("li", {}, el("strong", {}, x.short), ": ", x.text))) : el("p", {}, "None."),
       el("h3", {}, "Questions to check locally"),
       el("ul", {}, c.details.check.map((t) => el("li", {}, t))),
-      el("p", { class: "small" }, "Field Shift compares rotations on this field's past weather, soil and crop history (in past years like these). It does not forecast a harvest. Provisional model: not yet reviewed by anyone with farming expertise."));
+      el("p", { class: "small" }, "Policrop compares rotations on this field's past weather, soil and crop history (in past years like these). It does not forecast a harvest. Provisional model: not yet reviewed by anyone with farming expertise."));
     area.hidden = false;
     window.print();
     setTimeout(() => { area.hidden = true; }, 500);
@@ -835,7 +866,7 @@
   function info(text) {
     const p = el("p", { class: "what", hidden: true }, text);
     const b = el("button", { class: "info-btn", type: "button", "aria-label": "What this does", "aria-expanded": "false",
-      onclick: () => { p.hidden = !p.hidden; b.setAttribute("aria-expanded", String(!p.hidden)); } }, "ⓘ");
+      onclick: () => { p.hidden = !p.hidden; b.setAttribute("aria-expanded", String(!p.hidden)); } }, icon("info"));
     return [b, p];
   }
 
@@ -868,8 +899,8 @@
         onchange: () => { prio = [m, ...prio.filter((x) => x !== m)]; drawPrio(); } }), " ", labels[m])));
     const drawPrio = () => prioList.replaceChildren(...prio.map((m, i) => el("li", {},
       el("span", {}, `${i + 1}.`), el("span", {}, labels[m]),
-      el("button", { class: "btn small-btn", type: "button", "aria-label": `Move ${labels[m]} up`, disabled: i === 0 || null, onclick: () => { [prio[i - 1], prio[i]] = [prio[i], prio[i - 1]]; drawPrio(); drawTop(); } }, "↑"),
-      el("button", { class: "btn small-btn", type: "button", "aria-label": `Move ${labels[m]} down`, disabled: i === prio.length - 1 || null, onclick: () => { [prio[i + 1], prio[i]] = [prio[i], prio[i + 1]]; drawPrio(); drawTop(); } }, "↓"))));
+      el("button", { class: "btn small-btn", type: "button", "aria-label": `Move ${labels[m]} up`, disabled: i === 0 || null, onclick: () => { [prio[i - 1], prio[i]] = [prio[i], prio[i - 1]]; drawPrio(); drawTop(); } }, icon("arrow-up")),
+      el("button", { class: "btn small-btn", type: "button", "aria-label": `Move ${labels[m]} down`, disabled: i === prio.length - 1 || null, onclick: () => { [prio[i + 1], prio[i]] = [prio[i], prio[i + 1]]; drawPrio(); drawTop(); } }, icon("arrow-down")))));
     drawTop(); drawPrio();
 
     const dry = el("input", { type: "checkbox", id: "in-dry", checked: inp.dry_mode || null });
@@ -1003,7 +1034,7 @@
         onclick: (e) => openCorrection(e.currentTarget, y) },
         el("div", { class: `blk ${unsure ? "uncertain" : ""}`, style: `background-color:${y.color};color:${isDark(y.color) ? "#fff" : "#111"}` },
           unsure ? el("span", { class: "q", "aria-hidden": "true" }, "?") : null,
-          y.corrected ? el("span", { class: "c" }, "✎") : null,
+          y.corrected ? el("span", { class: "c" }, icon("pencil")) : null,
           shortName(y.name)),
         el("div", { class: "lbl" }, el("span", { class: "y" }, y.year),
           el("span", { class: "s" }, y.corrected ? "yours" : (y.share != null ? pct(y.share) : "no data")))));
@@ -1174,7 +1205,7 @@
       el("tbody", {}, rows.filter((r) => r.status !== "empty").map((r) => el("tr", {},
         el("td", {}, r.line), el("td", {}, r.year ?? "–"), el("td", {}, r.crop ? names[r.crop] : "–"),
         el("td", {}, r.yield_lb_ac ? `${Math.round(r.yield_lb_ac).toLocaleString()} lb/acre (${r.value} ${r.unit}${r.basis === "total" ? " total" : " per acre"})` : "–"),
-        el("td", {}, r.status === "ok" ? "✓" : r.status === "confirm" ?
+        el("td", {}, r.status === "ok" ? [icon("check"), el("span", { class: "visually-hidden" }, "used")] : r.status === "confirm" ?
           el("label", {}, el("input", { type: "checkbox", onchange: (e) => { confirms[r.line] = e.target.checked; } }), ` keep? ${r.reason}`) :
           el("span", { class: "error-text" }, `not used: ${r.reason}`)))))));
     msg.replaceChildren(
@@ -1426,7 +1457,7 @@
       _label: "Rain and snow per crop year",
       type: "bar",
       data: { labels: y.map((r) => r.year), datasets: [{ label: "Total", data: y.map((r) => r.total_in),
-        backgroundColor: y.map((r) => (r.year === hy ? css("--series-hl") : css("--series-rain"))), borderRadius: 3, barPercentage: 0.8, categoryPercentage: 0.9 }] },
+        backgroundColor: y.map((r) => (r.year === hy ? css("--series-hl") : css("--series-rain"))), borderRadius: 4, barPercentage: 0.8, categoryPercentage: 0.9 }] },
       options: {
         scales: { y: { title: { display: true, text: "inches per crop year" }, beginAtZero: true }, x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } },
         plugins: { tooltip: { callbacks: { title: (it) => `Crop year ${cropYear(y[it[0].dataIndex].year)}`, label: (it) => `${inch(it.raw)}${y[it.dataIndex].year === hy ? " (driest and hottest on record)" : ""}` } } },
@@ -1584,7 +1615,7 @@
       el("div", { class: "key" },
         el("span", {}, el("i", { class: "line", style: `background:${css("--series-ndvi")}` }), "Peak greenness"),
         el("span", {}, el("i", { class: "line", style: `background:${css("--series-hl")}` }), "May–June average"),
-        el("span", {}, "▲ along the bottom: drought year (extreme or exceptional drought over half the county)")));
+        el("span", {}, icon("triangle", "filled"), " along the bottom: drought year (extreme or exceptional drought over half the county)")));
     makeChart("modis", box, {
       _label: "Peak and late-spring greenness per year since 2000",
       type: "line",
@@ -1605,7 +1636,7 @@
     box.append(el("details", {}, el("summary", { class: "small" }, "Show the numbers"),
       table(["Year", "Crop (crop map)", "Peak", "May–June", "Drought"], ys.slice().reverse().map((y) => [
         y.year, crops[y.year] || "–", y.peak_ndvi.toFixed(2), y.window_mean_ndvi == null ? "–" : y.window_mean_ndvi.toFixed(2),
-        dry.has(y.year) ? "▲ yes" : ""]))),
+        dry.has(y.year) ? "yes" : ""]))),
       el("p", { class: "small muted" }, "The crop map starts in 2008, so earlier years have no crop label. MODIS composites cover 16 days each; a peak date is accurate to about a week."));
   }
 
@@ -1739,7 +1770,7 @@
           _label: "May to July topsoil moisture per year",
           type: "bar",
           data: { labels: ys.map((y) => (y.year === 2021 ? "2021 ▼" : String(y.year))), datasets: [{ data: ys.map((y) => +(y.mean * 100).toFixed(1)),
-            backgroundColor: ys.map((y) => (y.year === 2021 ? css("--series-hl") : css("--series-rain"))), borderRadius: 3 }] },
+            backgroundColor: ys.map((y) => (y.year === 2021 ? css("--series-hl") : css("--series-rain"))), borderRadius: 4 }] },
           options: { scales: { y: { beginAtZero: true, title: { display: true, text: "% water" } }, x: { grid: { display: false } } },
             plugins: { tooltip: { callbacks: { label: (it) => `${it.raw}% water by volume` } } } },
         }, "short");

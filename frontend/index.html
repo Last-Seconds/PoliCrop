@@ -3,8 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Field Shift</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%223%22 fill=%22%232f6f3e%22/%3E%3C/svg%3E">
+  <title>Policrop</title>
+  <link rel="icon" type="image/png" href="/static/brand/policrop-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600&display=swap">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.17.0/dist/leaflet-geoman.css">
   <link rel="stylesheet" href="/static/styles.css">
@@ -12,14 +15,14 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <span class="logo" aria-hidden="true">▦</span>
-      <span class="name">Field Shift</span>
+      <picture><source media="(max-width: 480px)" srcset="/static/brand/policrop-mark.png" width="96" height="96"><img class="wordmark" src="/static/brand/policrop-wordmark.jpg" width="584" height="96" alt="Policrop"></picture>
+      
     </div>
     <nav class="tabs" role="tablist" aria-label="Pages">
       <button type="button" role="tab" id="tab-field" aria-selected="true" aria-controls="page-field">Your field</button>
       <button type="button" role="tab" id="tab-about" aria-selected="false" aria-controls="view-about">About this area</button>
     </nav>
-    <button type="button" id="btn-theme" class="theme-btn" aria-pressed="false" aria-label="Dark screen" title="Light or dark screen">◐</button>
+    <button type="button" id="btn-theme" class="theme-btn" aria-pressed="false" aria-label="Dark screen" title="Light or dark screen"><svg class="ico moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg><svg class="ico sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></button>
   </header>
 
   <div id="page-field">
@@ -28,8 +31,9 @@
       <section id="my-fields" class="my-fields" aria-label="My fields"></section>
       <div id="map" class="map" aria-label="Map of the area"></div>
       <aside class="panel" id="map-panel">
+        <img class="start-logo" src="/static/brand/policrop-logo.jpg" width="720" height="610" alt="Policrop: tomatoes, peppers and potatoes growing in the soil, with the name below">
         <h1>Would a different rotation suit your field?</h1>
-        <p class="lede">Choose your field on the map. Field Shift reads its crop history, weather and soil from public
+        <p class="lede">Choose your field on the map. Policrop reads its crop history, weather and soil from public
           satellite and survey data, and puts your current rotation beside three options, with what each would change and why.
           It supports your judgement; it does not replace it.</p>
         <div class="step">
@@ -58,7 +62,7 @@
     <main id="view-field" class="view" hidden>
       <div class="page">
         <div class="field-head">
-          <button id="btn-back" class="btn" type="button" aria-label="Back to my fields and the map">←</button>
+          <button id="btn-back" class="btn" type="button" aria-label="Back to my fields and the map"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg></button>
           <p id="field-line" class="field-line"></p>
           <div id="save-box" class="save-box"></div>
         </div>
@@ -127,7 +131,7 @@
     <form method="dialog" id="adjust-form">
       <header class="adjust-head">
         <h2 id="adjust-title">Adjust</h2>
-        <button class="btn small-btn" value="cancel" type="submit" aria-label="Close">✕</button>
+        <button class="btn small-btn" value="cancel" type="submit" aria-label="Close"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
       </header>
       <div class="adjust-body" id="adjust-body"></div>
       <footer class="adjust-foot">
