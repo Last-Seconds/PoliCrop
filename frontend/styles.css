@@ -491,7 +491,7 @@ a { color: var(--accent); }
 .opt-head h3 { line-height: 1.3; }
 .cmp-crops { display: block; }
 
-/* brand: the Policrop logo is drawn on black, so it sits on its own dark tile in both themes */
+/* brand: the Policrop logo sits on its own dark blue tile (#0C234A) in both themes */
 .brand .wordmark { display: block; height: 40px; width: auto; border-radius: var(--r-sm); }
 .start-logo { display: block; width: 100%; max-width: 320px; height: auto; border-radius: var(--r-md); margin: 0 0 var(--s-4); }
 @media (max-width: 480px) { .brand .wordmark { height: 40px; width: 40px; } }
