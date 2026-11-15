@@ -1,5 +1,7 @@
 # Policrop
 
+**Live demo: [policrop.azurewebsites.net](https://policrop.azurewebsites.net)**
+
 A web app for the NASA Space Apps 2026 challenge *Field Shift: Adapting Farms with NASA Data*.
 A farmer picks one field in Whitman County, Washington (the Palouse). The app reads the field's crop
 history, weather, soil and slope from public data, and puts the current rotation beside three alternatives,
