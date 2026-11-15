@@ -1,0 +1,5 @@
+# The region the app currently serves, and which provider set answers for it.
+id: us-wa-whitman
+name: Whitman County, Washington, USA
+provider_set: us
+fips: "53075"

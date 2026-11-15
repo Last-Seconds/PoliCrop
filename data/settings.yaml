@@ -1,0 +1,106 @@
+# Thresholds and parameters. Every value is a named parameter; `provisional: true`
+# marks values the team has not decided yet (the UI shows them with a
+# "provisional" tag). Edit freely; no code change is needed.
+
+field:
+  min_area_ha: {value: 0.5, unit: ha, provisional: true, description: Smallest field outline accepted.}
+  max_area_ha: {value: 2000, unit: ha, provisional: true, description: Largest field outline accepted.}
+
+crop_history:
+  min_share_confident:
+    value: 0.6
+    unit: fraction of field
+    provisional: true
+    description: A year is flagged uncertain when its dominant crop class covers less than this share of the field.
+  min_pixels:
+    value: 4
+    unit: 30 m pixels
+    provisional: true
+    description: Fewer classified pixels than this inside the field and the year is reported as no data.
+
+rotation:
+  default_plan_length: {value: 3, unit: years, provisional: true, description: Plan length used when no repeating pattern is found in the crop history.}
+  min_period: {value: 2, unit: years, provisional: true, description: Shortest rotation length searched for.}
+  max_period: {value: 6, unit: years, provisional: true, description: Longest rotation length searched for.}
+  history_window_years: {value: 12, unit: years, provisional: true, description: How many recent years are used to detect the rotation.}
+  period_match_threshold:
+    value: 0.7
+    unit: fraction
+    provisional: true
+    description: Share of years whose crop role repeats after N years needed to call N the rotation length.
+
+crop_pool:
+  radius_km: {value: 10, unit: km, provisional: true, description: Radius around the field used to find the crops grown in the area.}
+  years: {value: 3, unit: years, provisional: true, description: Number of most recent crop-map years used for the crop pool.}
+  min_share:
+    value: 0.005
+    unit: fraction of cropland
+    provisional: true
+    description: A crop must cover at least this share of the surrounding cropland to enter the pool.
+
+vegetation:
+  years: {value: 7, unit: years, provisional: true, description: Number of most recent years of Sentinel-2 imagery read for the field.}
+  bare_ndvi_threshold:
+    value: 0.25
+    unit: NDVI
+    provisional: true
+    description: Below this vegetation index the field is treated as bare (nothing growing).
+  min_bare_observations: {value: 2, unit: images, provisional: true, description: Consecutive below-threshold images needed to call a bare period.}
+  max_gap_days:
+    value: 30
+    unit: days
+    provisional: true
+    description: Longer than this between usable images is shown as a gap, and a bare period is not carried across it.
+  min_valid_fraction:
+    value: 0.6
+    unit: fraction of field
+    provisional: true
+    description: An image is used only when at least this share of the field is free of cloud, shadow and snow.
+  max_scene_cloud_cover:
+    value: 80
+    unit: percent of scene
+    provisional: true
+    description: Scenes cloudier than this overall are skipped before reading (speeds up loading).
+  masked_scl_classes:
+    value: [0, 1, 3, 8, 9, 10, 11]
+    unit: Sentinel-2 SCL class
+    provisional: false
+    description: "Scene classes removed before averaging: no data, saturated, cloud shadow, cloud (medium, high), thin cirrus, snow/ice."
+
+climate:
+  frost_threshold_c: {value: 0.0, unit: °C, provisional: false, description: A frost day is a day whose minimum temperature is below this.}
+  crop_year_start_month:
+    value: 9
+    unit: month
+    provisional: true
+    description: Yearly totals run from the 1st of this month to the end of the month before, labelled by the harvest year (as the crop map is).
+  min_complete_fraction:
+    value: 1.0
+    unit: fraction of days
+    provisional: false
+    description: A month or year is used in averages only if this share of its days have valid data.
+
+generation:
+  default_step_window:
+    value: {start: "09-01", end: "08-31", spans_winter: true}
+    provisional: true
+    description: Used for crops with no season window in the crop table; one step per crop year.
+  max_candidates: {value: 50000, unit: candidates, provisional: true, description: Upper limit on candidates generated per request.}
+  alternatives_shown: {value: 3, unit: strategies, provisional: true, description: Number of generated strategies shown next to the existing rotation.}
+  distance_weights:
+    value: {same_crop: 0.0, same_role_other_crop: 0.5, other_role: 1.0}
+    provisional: true
+    description: Per-step cost used for the distance from the existing rotation.
+
+assessment:
+  criteria:
+    value: [Water use, Nitrogen, Erosion, Income]
+    provisional: true
+    description: Criteria each strategy should eventually be assessed on. Criteria without a scorer are listed as not yet assessed.
+  check_locally:
+    value: >-
+      This is a starting point for discussion, not a recommendation. Check it with
+      your own experience, your agronomist or extension office (for example WSU
+      Extension), your markets and your equipment before changing anything.
+    provisional: true
+    description: Note shown on every strategy.

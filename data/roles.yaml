@@ -1,0 +1,33 @@
+# Crop roles: PROVISIONAL CONTENT.
+# A strategy is a sequence of roles; each role can be filled by any crop in
+# crops.yaml with that role. `generate: false` keeps a role out of generated
+# candidates (it can still appear in the detected existing rotation).
+provisional: true
+
+roles:
+  - id: cereal
+    label: Cereal
+    color: "#C9A227"
+    generate: true
+  - id: legume
+    label: Nitrogen-fixing legume
+    short: legume
+    color: "#3E9B4F"
+    generate: true
+  - id: oilseed
+    label: Oilseed
+    color: "#E6D619"
+    generate: true
+  - id: fallow
+    label: Fallow
+    color: "#A8977A"
+    generate: true
+  - id: cover_crop
+    label: Cover crop
+    color: "#3FA7A0"
+    generate: true
+  - id: forage
+    label: Perennial forage
+    color: "#C77DBA"
+    generate: false
+    description: Multi-year perennials are not modelled by the v0 generator.

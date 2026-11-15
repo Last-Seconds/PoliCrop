@@ -1,0 +1,143 @@
+# Crop table: PROVISIONAL CONTENT.
+#
+# Only name, class codes and role are filled in. Every agronomic attribute is
+# deliberately null: the team will fill them from vetted sources. Do NOT invent
+# numbers here. The app reads this file at start-up; no code change is needed to
+# edit it. Schema (each crop):
+#
+#   id            unique identifier (snake_case)
+#   name          display name
+#   class_codes   map of classification system -> list of codes for this crop.
+#                 us_cdl = USDA Cropland Data Layer codes (checked against the
+#                 official CropScape legend, see data/us/cdl_legend.json).
+#                 Another country adds its own key; no code change needed.
+#   role          one of the role ids in roles.yaml
+#   pool          "if_grown_nearby" (default): only offered if the crop-type map
+#                 shows it in the surrounding area; "always": always offered
+#                 (cover crops, which the crop-type map cannot see).
+#   season_window {start: "MM-DD", end: "MM-DD", spans_winter: true|false}
+#                 sowing-to-harvest window; spans_winter=true means sown in the
+#                 autumn before the harvest year. null -> the provisional default
+#                 step window in settings.yaml is used.
+#   water_need_mm         seasonal water need, mm          (null = unknown)
+#   temperature_limits_c  {min: , max: } in degrees C      (null = unknown)
+#   nitrogen_effect       e.g. "fixes" / "neutral" / "draws" or kg N/ha (null = unknown)
+#   ground_cover          ground cover over the season      (null = unknown)
+#   notes         free text shown to the user
+provisional: true
+
+crops:
+  - id: winter_wheat
+    name: Winter wheat
+    class_codes: {us_cdl: [24]}
+    role: cereal
+    season_window: null
+    water_need_mm: null
+    temperature_limits_c: null
+    nitrogen_effect: null
+    ground_cover: null
+
+  - id: spring_wheat
+    name: Spring wheat
+    class_codes: {us_cdl: [23]}
+    role: cereal
+    season_window: null
+    water_need_mm: null
+    temperature_limits_c: null
+    nitrogen_effect: null
+    ground_cover: null
+
+  - id: barley
+    name: Barley
+    class_codes: {us_cdl: [21]}
+    role: cereal
+    season_window: null
+    water_need_mm: null
+    temperature_limits_c: null
+    nitrogen_effect: null
+    ground_cover: null
+
+  - id: peas
+    name: Peas
+    class_codes: {us_cdl: [53]}
+    role: legume
+    season_window: null
+    water_need_mm: null
+    temperature_limits_c: null
+    nitrogen_effect: null
+    ground_cover: null
+
+  - id: lentils
+    name: Lentils
+    class_codes: {us_cdl: [52]}
+    role: legume
+    season_window: null
+    water_need_mm: null
+    temperature_limits_c: null
+    nitrogen_effect: null
+    ground_cover: null
+
+  - id: chickpeas
+    name: Chickpeas
+    class_codes: {us_cdl: [51]}
+    role: legume
+    season_window: null
+    water_need_mm: null
+    temperature_limits_c: null
+    nitrogen_effect: null
+    ground_cover: null
+
+  - id: dry_beans
+    name: Dry beans
+    class_codes: {us_cdl: [42]}
+    role: legume
+    season_window: null
+    water_need_mm: null
+    temperature_limits_c: null
+    nitrogen_effect: null
+    ground_cover: null
+    notes: >-
+      In Whitman County the CDL shows large "Dry Beans" areas in years before
+      chickpeas (code 51) appear regularly; these may be chickpeas. Check locally.
+
+  - id: canola
+    name: Canola
+    class_codes: {us_cdl: [31]}
+    role: oilseed
+    season_window: null
+    water_need_mm: null
+    temperature_limits_c: null
+    nitrogen_effect: null
+    ground_cover: null
+
+  - id: alfalfa
+    name: Alfalfa
+    class_codes: {us_cdl: [36]}
+    role: forage
+    season_window: null
+    water_need_mm: null
+    temperature_limits_c: null
+    nitrogen_effect: null
+    ground_cover: null
+
+  - id: fallow
+    name: Fallow
+    class_codes: {us_cdl: [61]}
+    role: fallow
+    season_window: null
+    water_need_mm: null
+    temperature_limits_c: null
+    nitrogen_effect: null
+    ground_cover: null
+
+  - id: cover_crop
+    name: Cover crop (species not chosen)
+    class_codes: {}
+    role: cover_crop
+    pool: always
+    season_window: null
+    water_need_mm: null
+    temperature_limits_c: null
+    nitrogen_effect: null
+    ground_cover: null
+    notes: Placeholder. Which cover-crop species fit here is not decided.

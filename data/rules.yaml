@@ -1,0 +1,18 @@
+# Filter rules: PROVISIONAL CONTENT.
+# Each entry enables a rule implemented in backend/fieldshift/core/strategies/rules.py
+# (looked up by id in the rule registry). Parameters are passed to the rule.
+# A candidate that fails any enabled rule is discarded; the existing rotation is
+# never discarded, its rule results are shown instead.
+rules:
+  - id: no_identical_consecutive_crop
+    enabled: true
+    provisional: true
+    params:
+      # Also compare the last step with the first, because a rotation repeats.
+      cyclic: true
+
+  - id: no_overlapping_dates
+    enabled: true
+    provisional: true
+    params:
+      cyclic: true
