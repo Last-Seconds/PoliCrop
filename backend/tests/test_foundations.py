@@ -148,7 +148,7 @@ def test_daymet_csv_parsing():
     p = parse_daymet_csv(DAYMET_SAMPLE)
     assert p["elevation_m"] == 731 and p["tile"] == "12272"
     # 2024 is a leap year: yday 365 is 30 December (Daymet drops 31 December).
-    assert p["days"][0] == {"date": "2024-12-30", "precip_mm": 1.48, "tmax_c": 5.05, "tmin_c": -0.26}
+    assert p["days"][0] == {"date": "2024-12-30", "precip_mm": 1.48, "tmax_c": 5.05, "tmin_c": -0.26, "swe": None}
     assert p["days"][1]["date"] == "2025-01-01" and p["days"][2]["precip_mm"] is None
     with pytest.raises(ValueError):
         parse_daymet_csv("<html>error</html>")

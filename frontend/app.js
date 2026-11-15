@@ -1,9 +1,9 @@
-/* Field Shift front end: choose a field -> the answer first, evidence one tap away. Plain JS, no build step. */
+/* Policrop front end: choose a field -> the answer first, evidence one tap away. Plain JS, no build step. */
 (() => {
   "use strict";
 
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const VERDICT = { 1: ["b", "▲", "Better"], 0: ["s", "●", "About the same"], "-1": ["w", "▼", "Worse"], null: ["n", "–", "Not assessed"] };
+  const VERDICT = { 1: ["b", "arrow-up", "Better"], 0: ["s", "equal", "About the same"], "-1": ["w", "arrow-down", "Worse"], null: ["n", "minus", "Not assessed"] };
   const state = {
     config: null, fieldId: null, recId: null, db: null, field: null, corrections: {}, inputs: {}, history: null, strategies: null,
     climate: null, soil: null, charts: {}, overlay: null, rendered: new Set(), vegLoading: false,
@@ -20,6 +20,35 @@
       else n.setAttribute(k, v === true ? "" : v);
     }
     for (const c of children.flat()) if (c != null && c !== false) n.append(c.nodeType ? c : document.createTextNode(String(c)));
+    return n;
+  };
+  // One icon set (Lucide, ISC licence), drawn inline at 16 px with stroke 2; see .ico in styles.css.
+  const ICONS = {
+    "alert": '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    "check": '<path d="M20 6 9 17l-5-5"/>',
+    "x": '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    "star": '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',
+    "arrow-up": '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+    "arrow-down": '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+    "arrow-left": '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+    "equal": '<line x1="5" x2="19" y1="9" y2="9"/><line x1="5" x2="19" y1="15" y2="15"/>',
+    "minus": '<path d="M5 12h14"/>',
+    "chevron-up": '<path d="m18 15-6-6-6 6"/>',
+    "chevron-down": '<path d="m6 9 6 6 6-6"/>',
+    "chevron-right": '<path d="m9 18 6-6-6-6"/>',
+    "info": '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+    "pencil": '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>',
+    "moon": '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+    "sun": '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+    "triangle": '<path d="M13.73 4a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>',
+  };
+  const icon = (name, cls = "") => {
+    const n = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    n.setAttribute("viewBox", "0 0 24 24");
+    n.setAttribute("class", `ico ${cls}`.trim());
+    n.setAttribute("aria-hidden", "true");
+    n.setAttribute("focusable", "false");
+    n.innerHTML = ICONS[name];
     return n;
   };
   const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -174,10 +203,10 @@
     const box = $("#save-box");
     if (!rec) { box.replaceChildren(); return; }
     if (rec.saved) {
-      box.replaceChildren(el("span", { id: "saved-mark", class: "saved-mark" }, "✓ saved"));
+      box.replaceChildren(el("span", { id: "saved-mark", class: "saved-mark" }, icon("check"), " saved"));
       return;
     }
-    box.replaceChildren(el("span", { id: "saved-mark", class: "saved-mark", hidden: true }, "✓ saved"),
+    box.replaceChildren(el("span", { id: "saved-mark", class: "saved-mark", hidden: true }, icon("check"), " saved"),
       el("button", { class: "btn", type: "button", "aria-label": "Save this field", onclick: () => {
         const input = el("input", { type: "text", maxlength: 120, value: suggestName(rec), "aria-label": "Name for this field" });
         box.replaceChildren(el("form", { class: "save-form", onsubmit: (e) => {
@@ -320,11 +349,11 @@
   async function loadFieldsFile(file) {
     if (!file) return;
     const refuse = (why) => fileMsg(`This file was not loaded, and nothing was changed: ${why}`, true);
-    if (file.size > MAX_FILE_BYTES) return refuse("it is larger than a Field Shift file can be (2 MB).");
+    if (file.size > MAX_FILE_BYTES) return refuse("it is larger than a Policrop file can be (2 MB).");
     let data;
-    try { data = JSON.parse(await file.text()); } catch { return refuse("it is not a readable Field Shift file."); }
-    if (!isObj(data) || data.format !== FILE_FORMAT || !Array.isArray(data.fields)) return refuse("it is not a Field Shift fields file.");
-    if (typeof data.version !== "number" || data.version > FS_VERSION) return refuse("it was made by a newer version of Field Shift.");
+    try { data = JSON.parse(await file.text()); } catch { return refuse("it is not a readable Policrop file."); }
+    if (!isObj(data) || data.format !== FILE_FORMAT || !Array.isArray(data.fields)) return refuse("it is not a Policrop fields file.");
+    if (typeof data.version !== "number" || data.version > FS_VERSION) return refuse("it was made by a newer version of Policrop.");
     if (!data.fields.length) return refuse("it holds no fields.");
     if (data.fields.length > 200) return refuse("it holds more fields than one file can (200).");
     const recs = [];
@@ -367,7 +396,7 @@
     $("#tab-about").setAttribute("aria-selected", String(about));
     $("#page-field").hidden = about;
     $("#view-about").hidden = !about;
-    if (about) renderAbout();
+    if (about) { renderAbout(); renderEnso($("#about-enso")); }
     else setTimeout(() => { if (map) map.invalidateSize(); }, 50);
     window.scrollTo(0, 0);
   }
@@ -520,6 +549,7 @@
     state.inputs = rec.inputs || {};
     renderSaveControl();
     renderFieldLine(null);
+    setupFieldMap();
     $("#headline").textContent = "";
     $("#compare").replaceChildren();
     $("#cards").replaceChildren(el("div", { class: "loading" }, "Reading your field: crop history, weather and soil. The first time can take a minute or two."));
@@ -538,7 +568,7 @@
   function modelInputs() {
     const rec = currentRec() || {};
     return { ...state.inputs, corrections: state.corrections, kept: rec.kept || [], records: rec.records || [],
-      answers: rec.answers || {}, fit: !!rec.fit };
+      answers: rec.answers || {}, fit: !!rec.fit, example_records: !!rec.example_records };
   }
   const inputsParam = () => encodeURIComponent(JSON.stringify(modelInputs()));
 
@@ -567,6 +597,7 @@
       if (fid !== state.fieldId) return;
       state.strategies = s;
       renderStrategies(s);
+      loadSeason();
       if (state.history && sectionOpen("history")) renderHistory(state.history);
     } catch (err) {
       showError(cards, "Options could not be worked out.", err);
@@ -617,14 +648,18 @@
     $("#compare").replaceChildren(head, ...rows.map((c) => {
       const isCur = c.kind === "existing";
       const name = isCur ? "Now" : c.closed.title;
+      const tag = isCur ? null : c.closed.tag;
       const crops = c.closed.chips.map((x) => x.name).join(" → ");
-      const said = isCur ? "the rotation every option is compared with" :
-        c.closed.verdicts.map((v) => `${v.label} ${v.word}`).join(", ");
-      return el("button", { class: `cmp-row ${isCur ? "cur" : ""}`, type: "button", "aria-label": `${name}: ${crops}; ${said}. Open its card.`,
+      const said = (isCur ? "the rotation every option is compared with" :
+        c.closed.verdicts.map((v) => `${v.label} ${v.word}`).join(", ")) +
+        (c.cautions.some((x) => x.serious) ? `; caution: ${c.cautions.filter((x) => x.serious).map((x) => x.short).join("; ")}` : "");
+      return el("button", { class: `cmp-row ${isCur ? "cur" : ""}`, type: "button", "aria-label": `${tag ? tag + ", " : ""}${name}: ${crops}; ${said}. Open its card.`,
         onclick: () => openCard(c.id) },
-        el("span", { class: "cmp-title" }, el("strong", {}, name), c.kept ? " ★" : "", " ", el("span", { class: "cmp-crops" }, crops)),
+        el("span", { class: "cmp-title" }, tag ? [el("span", { class: "opt-tag" }, tag), " "] : null, el("strong", {}, name), c.kept ? [" ", icon("star", "filled kept-star")] : "",
+          c.cautions.some((x) => x.serious) ? el("span", { class: "cmp-warn", title: c.cautions.filter((x) => x.serious).map((x) => x.short).join("; ") }, " ", icon("alert")) : null,
+          " ", el("span", { class: "cmp-crops" }, crops)),
         ...c.closed.verdicts.map((v) => el("span", { class: `cmp-v ${isCur ? "n" : vcls(v.value)}`, "aria-hidden": "true" },
-          isCur ? "–" : `${v.symbol} ${v.word.replace(/^about the same/, "same")}`)));
+          isCur ? icon("minus") : [icon(VERDICT[v.value == null ? null : v.value][1]), v.word.replace(/^about the same/, "same")])));
     }));
   }
 
@@ -641,10 +676,12 @@
 
   function card(c, s, shown) {
     const cl = c.closed, isCur = c.kind === "existing";
-    // One caution on the card, preferring one not already shown on an earlier card; the rest behind a count.
-    const first = c.cautions.find((x) => !shown.has(x.key)) || c.cautions[0];
+    // Serious cautions are always shown (addendum 2, A1). Otherwise one caution, preferring one not already
+    // shown on an earlier card; the rest behind a count.
+    const serious = c.cautions.filter((x) => x.serious);
+    const first = serious.length ? null : (c.cautions.find((x) => !shown.has(x.key)) || c.cautions[0]);
     if (first) shown.add(first.key);
-    const rest = c.cautions.filter((x) => x !== first);
+    const rest = c.cautions.filter((x) => x !== first && !x.serious);
     const restList = el("ul", { class: "cautions rest", hidden: true }, rest.map((x) => el("li", {}, x.short)));
     const restBtn = rest.length ? el("button", { class: "linklike", type: "button", "aria-expanded": "false", onclick: (e) => {
       restList.hidden = !restList.hidden; e.currentTarget.setAttribute("aria-expanded", String(!restList.hidden));
@@ -658,15 +695,18 @@
       toggle.setAttribute("aria-expanded", String(!det.hidden));
       toggle.textContent = det.hidden ? "Why and details" : "Hide details";
     } }, "Why and details");
-    return el("article", { class: `opt ${isCur ? "current" : ""}`, id: `card-${c.id}`, tabindex: "-1", "aria-label": cl.title },
-      el("div", { class: "opt-head" }, el("h3", {}, cl.title), cl.band ? el("span", { class: "band" }, cl.band) : null,
-        c.kept ? el("span", { class: "kept-mark" }, "★ kept") : null),
+    return el("article", { class: `opt ${isCur ? "current" : ""}`, id: `card-${c.id}`, tabindex: "-1", "aria-label": cl.tag ? `${cl.tag}, ${cl.title}` : cl.title },
+      el("div", { class: "opt-head" }, el("div", { class: "opt-title" }, cl.tag ? el("span", { class: "opt-tag" }, cl.tag) : null, el("h3", {}, cl.title)),
+        cl.band ? el("span", { class: "band" }, cl.band) : null,
+        c.kept ? el("span", { class: "kept-mark" }, icon("star", "filled"), " kept") : null),
       el("ol", { class: "chips", "aria-label": "Crops, year by year" }, cl.chips.map((ch) =>
         el("li", { class: "chip", style: `--role:${roleColor(ch.role)}` }, ch.name))),
       isCur ? el("p", { class: "cur-note" }, "Every option is compared with this.") :
         el("ul", { class: "vlines" }, cl.verdicts.map((v) => el("li", {}, el("span", { class: "vl" }, v.label),
-          el("span", { class: `verdict ${vcls(v.value)}` }, `${v.symbol} ${v.word}`)))),
-      first ? el("div", { class: "caution-line" }, el("span", { class: "caution" }, first.short), restBtn ? " " : null, restBtn, restList) : null,
+          el("span", { class: `verdict ${vcls(v.value)}` }, icon(VERDICT[v.value == null ? null : v.value][1]), v.word)))),
+      serious.length ? el("ul", { class: "cautions serious" }, serious.map((x) => el("li", { class: "caution serious" }, x.short))) : null,
+      (first || restBtn) ? el("div", { class: "caution-line" }, first ? el("span", { class: "caution" }, first.short) : null,
+        restBtn ? " " : null, restBtn, restList) : null,
       cl.harvest ? el("p", { class: "harvest" }, cl.harvest) : null,
       toggle, det);
   }
@@ -726,7 +766,7 @@
         c.notes.change_details && c.notes.change_details.length ? list(c.notes.change_details) : null])),
       sec("What we don't know", list(f.unknowns), expander(`see all (${d.unknowns.length})`, () => [list(d.unknowns)])),
       sec("Check locally", list(f.check), expander("see all", () => [list(d.check),
-        el("ul", { class: "rules-list" }, c.rules.map((r) => el("li", {}, `${r.passed ? "✓" : "✗"} ${r.label}${r.passed ? "" : `: ${r.reason}`}`)))])),
+        el("ul", { class: "rules-list" }, c.rules.map((r) => el("li", {}, el("span", { class: r.passed ? "pass" : "fail" }, icon(r.passed ? "check" : "x")), el("span", { class: "visually-hidden" }, r.passed ? "Passes: " : "Fails: "), `${r.label}${r.passed ? "" : `: ${r.reason}`}`)))])),
       el("div", { class: "card-actions" },
         isCur ? null : keepControl(c),
         el("button", { class: "btn", type: "button", onclick: () => printOption(c, s) }, "Print this option")),
@@ -746,14 +786,14 @@
         box.replaceChildren(el("button", { class: "btn", type: "button", onclick: () => {
           updateRec({ kept: [...(currentRec().kept || []), { crops: [...c.crop_ids], note: "" }] });
           draw(); loadStrategies();
-        } }, "☆ Keep this option"));
+        } }, icon("star"), " Keep this option"));
         return;
       }
       const note = el("input", { type: "text", maxlength: 300, value: k.note || "", placeholder: "A note, if you like", "aria-label": "Note on this kept option" });
       note.addEventListener("change", () => {
         updateRec({ kept: currentRec().kept.map((x) => (sameRotation(x.crops, c.crop_ids) ? { ...x, note: note.value } : x)) });
       });
-      box.replaceChildren(el("p", { class: "small" }, "★ Kept with this field."), note,
+      box.replaceChildren(el("p", { class: "small" }, icon("star", "filled"), " Kept with this field."), note,
         el("button", { class: "btn", type: "button", onclick: () => {
           updateRec({ kept: currentRec().kept.filter((x) => !sameRotation(x.crops, c.crop_ids)) });
           draw(); loadStrategies();
@@ -770,20 +810,20 @@
     const area = $("#print-area");
     const kept = (rec.kept || []).find((k) => sameRotation(k.crops, c.crop_ids));
     area.replaceChildren(
-      el("h1", {}, "Field Shift: one option for one field"),
+      el("h1", {}, "Policrop: one option for one field"),
       el("p", {}, `${rec.saved ? rec.name + ", " : ""}${s.field.acres.toLocaleString()} acres. Now: ${s.current_rotation_text}. Printed ${new Date().toLocaleDateString()}.`),
-      el("h2", {}, c.kind === "existing" ? "Your current rotation" : `${c.closed.title}: ${c.closed.chips.map((x) => x.name).join(" → ")}`),
+      el("h2", {}, c.kind === "existing" ? "Your current rotation" : `${c.closed.tag ? c.closed.tag + ", " : ""}${c.closed.title}: ${c.closed.chips.map((x) => x.name).join(" → ")}`),
       kept && kept.note ? el("p", {}, `Your note: ${kept.note}`) : null,
       el("p", {}, c.first.why),
       el("h3", {}, "Compared with your current rotation"),
       el("table", { class: "print-table" }, el("tbody", {}, c.lines.map((l) => el("tr", {},
-        el("th", {}, l.label), el("td", {}, c.kind === "existing" ? "" : `${VERDICT[l.verdict == null ? null : l.verdict][1]} ${l.verdict_word}`),
+        el("th", {}, l.label), el("td", {}, c.kind === "existing" ? "" : [icon(VERDICT[l.verdict == null ? null : l.verdict][1]), " ", l.verdict_word]),
         el("td", {}, l.value_text + (l.now_text ? `. Now: ${l.now_text.charAt(0).toLowerCase()}${l.now_text.slice(1)}` : "") + "."))))),
       el("h3", {}, "Cautions"),
       c.cautions.length ? el("ul", {}, c.cautions.map((x) => el("li", {}, el("strong", {}, x.short), ": ", x.text))) : el("p", {}, "None."),
       el("h3", {}, "Questions to check locally"),
       el("ul", {}, c.details.check.map((t) => el("li", {}, t))),
-      el("p", { class: "small" }, "Field Shift compares rotations on this field's past weather, soil and crop history (in past years like these). It does not forecast a harvest. Provisional model: not yet reviewed by anyone with farming expertise."));
+      el("p", { class: "small" }, "Policrop compares rotations on this field's past weather, soil and crop history (in past years like these). It does not forecast a harvest. Provisional model: not yet reviewed by anyone with farming expertise."));
     area.hidden = false;
     window.print();
     setTimeout(() => { area.hidden = true; }, 500);
@@ -826,7 +866,7 @@
   function info(text) {
     const p = el("p", { class: "what", hidden: true }, text);
     const b = el("button", { class: "info-btn", type: "button", "aria-label": "What this does", "aria-expanded": "false",
-      onclick: () => { p.hidden = !p.hidden; b.setAttribute("aria-expanded", String(!p.hidden)); } }, "ⓘ");
+      onclick: () => { p.hidden = !p.hidden; b.setAttribute("aria-expanded", String(!p.hidden)); } }, icon("info"));
     return [b, p];
   }
 
@@ -859,8 +899,8 @@
         onchange: () => { prio = [m, ...prio.filter((x) => x !== m)]; drawPrio(); } }), " ", labels[m])));
     const drawPrio = () => prioList.replaceChildren(...prio.map((m, i) => el("li", {},
       el("span", {}, `${i + 1}.`), el("span", {}, labels[m]),
-      el("button", { class: "btn small-btn", type: "button", "aria-label": `Move ${labels[m]} up`, disabled: i === 0 || null, onclick: () => { [prio[i - 1], prio[i]] = [prio[i], prio[i - 1]]; drawPrio(); drawTop(); } }, "↑"),
-      el("button", { class: "btn small-btn", type: "button", "aria-label": `Move ${labels[m]} down`, disabled: i === prio.length - 1 || null, onclick: () => { [prio[i + 1], prio[i]] = [prio[i], prio[i + 1]]; drawPrio(); drawTop(); } }, "↓"))));
+      el("button", { class: "btn small-btn", type: "button", "aria-label": `Move ${labels[m]} up`, disabled: i === 0 || null, onclick: () => { [prio[i - 1], prio[i]] = [prio[i], prio[i - 1]]; drawPrio(); drawTop(); } }, icon("arrow-up")),
+      el("button", { class: "btn small-btn", type: "button", "aria-label": `Move ${labels[m]} down`, disabled: i === prio.length - 1 || null, onclick: () => { [prio[i + 1], prio[i]] = [prio[i], prio[i + 1]]; drawPrio(); drawTop(); } }, icon("arrow-down")))));
     drawTop(); drawPrio();
 
     const dry = el("input", { type: "checkbox", id: "in-dry", checked: inp.dry_mode || null });
@@ -994,7 +1034,7 @@
         onclick: (e) => openCorrection(e.currentTarget, y) },
         el("div", { class: `blk ${unsure ? "uncertain" : ""}`, style: `background-color:${y.color};color:${isDark(y.color) ? "#fff" : "#111"}` },
           unsure ? el("span", { class: "q", "aria-hidden": "true" }, "?") : null,
-          y.corrected ? el("span", { class: "c" }, "✎") : null,
+          y.corrected ? el("span", { class: "c" }, icon("pencil")) : null,
           shortName(y.name)),
         el("div", { class: "lbl" }, el("span", { class: "y" }, y.year),
           el("span", { class: "s" }, y.corrected ? "yours" : (y.share != null ? pct(y.share) : "no data")))));
@@ -1067,6 +1107,299 @@
     if (!pop.hidden && !pop.contains(e.target) && !e.target.closest(".yr")) pop.hidden = true;
   });
 
+  // ---------- the farmer's records, fitting (brief 3, parts B and C) -------------------------------
+  const UNITS = [["bu", "bushels"], ["lb", "pounds"], ["cwt", "hundredweight"], ["ton", "tons"]];
+
+  function recordsGroup() {
+    const rec = currentRec();
+    const s = state.strategies;
+    const box = el("div", { class: "records" });
+    const msg = el("div", { "aria-live": "polite" });
+    const draw = () => {
+      const r = currentRec();
+      const sec = state.strategies && state.strategies.records;
+      const years = (state.history ? state.history.years : []).filter((y) => y.crop_id && state.config.offered_crops.includes(y.crop_id)
+        && !["fallow", "cover_crop"].includes((state.config.crops.find((c) => c.id === y.crop_id) || {}).role)).slice(-12).reverse();
+      const have = Object.fromEntries((r.records || []).map((x) => [`${x.year}:${x.crop}`, x]));
+      const rows = years.map((y) => {
+        const k = have[`${y.year}:${y.crop_id}`];
+        const crop = state.config.crops.find((c) => c.id === y.crop_id);
+        const unitDefault = crop && crop.yield_unit ? ({ bu: "bu", tons: "ton" }[crop.yield_unit.name] || "lb") : "lb";
+        return el("tr", { "data-year": y.year, "data-crop": y.crop_id },
+          el("td", {}, y.year), el("td", {}, crop ? crop.name : y.crop_id),
+          el("td", {}, el("input", { type: "number", min: 0, step: "any", inputmode: "decimal", "aria-label": `Harvest ${y.year}`,
+            value: k && k.entered ? k.entered.value : (k ? k.yield_lb_ac : ""), "data-k": "value" })),
+          el("td", {}, el("select", { "aria-label": `Unit ${y.year}`, "data-k": "unit" }, UNITS.map(([u, w]) =>
+            el("option", { value: u, selected: (k && k.entered ? k.entered.unit : (k ? "lb" : unitDefault)) === u || null }, w)))),
+          el("td", {}, el("select", { "aria-label": `Per acre or total ${y.year}`, "data-k": "basis" },
+            el("option", { value: "per_acre" }, "per acre"),
+            el("option", { value: "total", selected: k && k.entered && k.entered.basis === "total" || null }, "total from the field"))));
+      });
+      const table = el("div", { class: "table-wrap" }, el("table", { class: "data-table left rec-table" },
+        el("thead", {}, el("tr", {}, ["Year", "Crop", "Harvest", "Unit", ""].map((h) => el("th", {}, h)))), el("tbody", {}, rows)));
+      const acres = el("input", { type: "number", min: 0, step: "any", value: (r.harvest_acres || (r.acres || "")), "aria-label": "Acres harvested" });
+      box.replaceChildren(
+        el("p", {}, "Fill in the years you know; leave the rest empty. Or download the blank sheet, fill it in and load it."),
+        table,
+        el("label", { class: "row" }, "Acres harvested, for totals: ", acres),
+        el("div", { class: "row" },
+          el("button", { class: "btn primary", type: "button", onclick: () => useTyped(table, acres, msg) }, "Use these figures"),
+          el("a", { class: "btn", href: `/api/field/${state.fieldId}/records_template.xlsx?corrections=${encodeURIComponent(JSON.stringify(state.corrections))}` }, "Download a blank sheet"),
+          el("label", { class: "btn file-btn" }, "Load a sheet (.xlsx or .csv)",
+            el("input", { type: "file", accept: ".xlsx,.csv", class: "visually-hidden", onchange: (e) => { uploadSheet(e.target.files[0], msg); e.target.value = ""; } }))),
+        el("p", { class: "small muted" }, "A file you load is read on our server for its values only, then discarded. Your records are kept in this browser, with the field."),
+        msg,
+        el("div", { class: "row" },
+          el("button", { class: "btn", type: "button", onclick: async () => {
+            const ex = await api(`/api/field/${state.fieldId}/example_records?corrections=${encodeURIComponent(JSON.stringify(state.corrections))}`);
+            updateRec({ records: ex.records.map((x) => ({ ...x, entered: null })), example_records: true, answers: {} });
+            msg.replaceChildren(el("p", { class: "notice" }, "Example records loaded: example data, not a real farm."));
+            loadStrategies(); draw();
+          } }, "Try with example records"),
+          (r.records || []).length ? el("button", { class: "btn", type: "button", onclick: () => {
+            updateRec({ records: [], answers: {}, example_records: false, fit: false }); loadStrategies(); draw();
+          } }, "Clear records") : null,
+          (r.records || []).length ? el("button", { class: "btn", type: "button", onclick: downloadRecords }, "Download my records") : null),
+        sec && sec.count ? recordsResult(sec, draw) : null);
+    };
+    draw();
+    return { node: item(el("span", {}, "Your harvest records"), box,
+      "Your own yields, by year. They are compared with what that year's weather would have led us to expect, and blended with regional figures: a few records nudge the result, many lead it."), collect: null };
+  }
+
+  function downloadRecords() {
+    const r = currentRec();
+    const blob = new Blob([JSON.stringify({ format: "fieldshift-records", version: 1, field: r.name || null, records: r.records, answers: r.answers }, null, 1)], { type: "application/json" });
+    const a = el("a", { href: URL.createObjectURL(blob), download: "my-harvest-records.json" });
+    document.body.append(a); a.click(); a.remove();
+  }
+
+  async function useTyped(table, acres, msg) {
+    const rows = [...table.querySelectorAll("tbody tr")].map((tr) => ({
+      year: +tr.dataset.year, crop: tr.dataset.crop, value: tr.querySelector("[data-k=value]").value,
+      unit: tr.querySelector("[data-k=unit]").value, basis: tr.querySelector("[data-k=basis]").value, acres: acres.value || null,
+    })).filter((x) => x.value !== "");
+    const res = await api(`/api/field/${state.fieldId}/records/check`, { method: "POST", body: JSON.stringify({ rows }) });
+    showPreview(res.rows, msg, acres.value);
+  }
+
+  async function uploadSheet(file, msg) {
+    if (!file) return;
+    msg.replaceChildren(el("div", { class: "loading" }, "Reading the file…"));
+    try {
+      const res = await fetch(`/api/field/${state.fieldId}/records/read?name=${encodeURIComponent(file.name)}`, { method: "POST", body: await file.arrayBuffer() });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.detail || res.statusText);
+      showPreview(body.rows, msg, null, body);
+    } catch (err) {
+      msg.replaceChildren(el("p", { class: "error", role: "alert" }, err.message));
+    }
+  }
+
+  function showPreview(rows, msg, acres, info) {
+    const names = Object.fromEntries(state.config.crops.map((c) => [c.id, c.name]));
+    const ok = rows.filter((r) => r.status === "ok" || r.status === "confirm");
+    const confirms = {};
+    const table = el("div", { class: "table-wrap" }, el("table", { class: "data-table left" },
+      el("thead", {}, el("tr", {}, ["Line", "Year", "Crop", "Read as", ""].map((h) => el("th", {}, h)))),
+      el("tbody", {}, rows.filter((r) => r.status !== "empty").map((r) => el("tr", {},
+        el("td", {}, r.line), el("td", {}, r.year ?? "–"), el("td", {}, r.crop ? names[r.crop] : "–"),
+        el("td", {}, r.yield_lb_ac ? `${Math.round(r.yield_lb_ac).toLocaleString()} lb/acre (${r.value} ${r.unit}${r.basis === "total" ? " total" : " per acre"})` : "–"),
+        el("td", {}, r.status === "ok" ? [icon("check"), el("span", { class: "visually-hidden" }, "used")] : r.status === "confirm" ?
+          el("label", {}, el("input", { type: "checkbox", onchange: (e) => { confirms[r.line] = e.target.checked; } }), ` keep? ${r.reason}`) :
+          el("span", { class: "error-text" }, `not used: ${r.reason}`)))))));
+    msg.replaceChildren(
+      el("h4", {}, "Check how each row was read"),
+      info && info.unsure && info.unsure.length ? el("p", { class: "notice" }, `Some columns could be read more than one way (${info.unsure.join(", ")}): check the years, crops and figures below.`) : null,
+      table,
+      el("div", { class: "row" },
+        el("button", { class: "btn primary", type: "button", onclick: () => {
+          const use = ok.filter((r) => r.status === "ok" || confirms[r.line]);
+          const prev = Object.fromEntries((currentRec().records || []).map((x) => [`${x.year}:${x.crop}`, x]));
+          for (const r of use) prev[`${r.year}:${r.crop}`] = { year: r.year, crop: r.crop, yield_lb_ac: r.yield_lb_ac,
+            entered: { value: r.value, unit: r.unit, basis: r.basis, acres: acres ? +acres : null }, confirmed: r.status === "confirm" };
+          updateRec({ records: Object.values(prev), example_records: false });
+          msg.replaceChildren(el("p", { class: "notice" }, `${use.length} record${use.length === 1 ? "" : "s"} added. Close Adjust and press Show results to see them used.`));
+          loadStrategies();
+        } }, `Use ${ok.length} row${ok.length === 1 ? "" : "s"}`)));
+  }
+
+  function recordsResult(sec, redraw) {
+    const rec = currentRec();
+    const names = Object.fromEntries(state.config.crops.map((c) => [c.id, c.name]));
+    const rows = sec.comparison.rows;
+    const chartBox = el("div", {});
+    setTimeout(() => {
+      if (!chartBox.isConnected) return;
+      makeChart("records", chartBox, {
+        _label: "Your yield beside our estimate for each year",
+        type: "bar",
+        data: { labels: rows.map((r) => `${r.year} ${names[r.crop].toLowerCase()}`), datasets: [
+          { label: "Your yield", data: rows.map((r) => r.actual_lb_ac), backgroundColor: css("--series-ndvi") },
+          { label: "Our estimate for that year's weather", data: rows.map((r) => r.expected_lb_ac), backgroundColor: css("--series-rain") }] },
+        options: { plugins: { legend: { display: true }, tooltip: { callbacks: { afterBody: (it) => {
+          const r = rows[it[0].dataIndex]; return [r.reason_words ? `Your answer: ${r.reason_words}${r.excluded ? " (left out of fitting)" : ""}` : "", sec.example ? "Example data, not a real farm" : ""].filter(Boolean);
+        } } } }, scales: { y: { title: { display: true, text: "lb per acre" }, beginAtZero: true } } },
+      }, "short");
+    }, 50);
+    const q = sec.questions.map((x) => el("div", { class: "question" },
+      el("p", {}, el("strong", {}, `${x.year}, ${x.crop_name.toLowerCase()}: `), "Our estimate missed this year. Do you know why?"),
+      el("select", { "aria-label": `Why ${x.year} was different`, onchange: (e) => {
+        const answers = { ...(currentRec().answers || {}) };
+        if (e.target.value) answers[x.key] = e.target.value; else delete answers[x.key];
+        updateRec({ answers }); loadStrategies();
+      } }, el("option", { value: "" }, "Choose…"), Object.entries(sec.reasons).map(([k, w]) => el("option", { value: k, selected: x.answer === k || null }, w)))));
+    const fitOn = !!rec.fit;
+    const fit = sec.fit;
+    const fitBox = el("div", { class: "fit" },
+      el("label", { class: "switch" }, el("input", { type: "checkbox", checked: fitOn || null, onchange: (e) => { updateRec({ fit: e.target.checked }); loadStrategies().then(redraw); } }), " Fit to my field"),
+      fitOn && fit ? el("p", {}, fit.applied ? fit.message : fit.message, sec.example ? " (example data, not a real farm)" : "") : null,
+      fitOn ? el("button", { class: "btn", type: "button", onclick: () => { updateRec({ fit: false }); loadStrategies().then(redraw); } }, "Undo: back to the regional values") : null,
+      fit && fit.coverage ? el("p", { class: "notice" }, fit.coverage) : null);
+    return el("div", { class: "rec-result" },
+      el("h4", {}, "Your yields against our estimate"), sec.example ? el("p", { class: "notice" }, "Example data, not a real farm.") : null,
+      chartBox, el("p", {}, sec.comparison.sentence + " Each estimate uses that year's own weather, month by month: in past years like this, not a forecast."),
+      q.length ? el("div", {}, ...q) : null,
+      sec.levels.length ? el("details", {}, el("summary", {}, "What your records changed"), el("ul", {}, sec.levels.map((l) => el("li", {},
+        `${l.crop}: ${l.level_lb_ac.toLocaleString()} lb/acre against the regional ${l.regional_lb_ac.toLocaleString()} (weight ${Math.round(l.w * 100)}%)`
+        + (l.borrowed_from.length ? `, estimated from your ${l.borrowed_from.map((x) => x.toLowerCase()).join(" and ")} records` : "")
+        + (sec.example ? " — example data, not a real farm" : ""))))) : null,
+      fitBox);
+  }
+  ADJUST_EXTRAS.push(() => (state.fieldId ? recordsGroup() : null));
+
+  // ---------- this year so far (brief 3, part D) ---------------------------------------------
+  async function loadSeason() {
+    const line = $("#season-line");
+    line.hidden = true;
+    const fid = state.fieldId;
+    const asof = (/asof=(\d{4}-\d{2}-\d{2})/.exec(location.hash) || [])[1];
+    let s;
+    try {
+      s = await api(`/api/field/${fid}/season?inputs=${inputsParam()}${asof ? `&date=${asof}` : ""}`);
+    } catch { return; }
+    if (fid !== state.fieldId || !s.show || ["hidden"].includes(s.status)) return;
+    const date = fmtDate(s.date);
+    let head;
+    if (s.status === "unavailable") head = `This year so far (${date}): the check is unavailable — ${s.reason || "no station data"}.`;
+    else if (s.status === "refills") head = `This year so far (${date}): ${s.message}`;
+    else head = `This year so far (${date}): stored water is wetter than ${s.rank.wetter_than} of the last ${s.rank.of} winters at this date.`;
+    const body = [];
+    if (s.stored_in != null) body.push(`Stored water so far for ${s.next_crop.toLowerCase()} (${s.kind === "fallow" ? "after fallow" : "after a harvested crop"}): about ${s.stored_in} in of a possible ${s.capacity_in} in.`);
+    if (s.status === "ok") body.push(`In ${s.lookalike_years.length} past years that started like this one, ${s.next_role === "fallow" ? "a spring crop" : s.next_crop.toLowerCase()} ran short in ${s.lookalike_short}.` + (s.lookalike_note ? ` ${s.lookalike_note}` : ""));
+    if (s.guideline && s.guideline.band) body.push(`Guideline only [S27]: for ${s.guideline.band} of yearly rain and snow, about ${s.guideline.spring_in} in of stored water before spring planting and ${s.guideline.autumn_in} in before autumn planting.`);
+    for (const a of s.alternatives || []) body.push(`${a.crop}: short in ${a.short} of ${a.of} of those years.`);
+    if (s.records && s.records.length) body.push(`You recorded ${s.records.map((r) => `${Math.round(r.yield_lb_ac)} lb/acre in ${r.year}`).join(" and ")} in years like this.`);
+    if (s.source && s.source.text) body.push(s.source.text);
+    body.push("In past years like this; not a forecast. It does not tell you what to plant.");
+    line.replaceChildren(el("details", {}, el("summary", {}, head), el("ul", {}, body.map((t) => el("li", {}, t)))));
+    line.hidden = false;
+  }
+
+  // ---------- validation and El Niño (brief 3, parts A and D) --------------------------------------
+  async function renderValidation(box) {
+    let v;
+    try { v = await api("/api/validation"); } catch (err) { box.replaceChildren(el("p", { class: "muted" }, err.message)); return; }
+    const names = Object.fromEntries(state.config.crops.map((c) => [c.id, c.name]));
+    const r2 = (x) => (x == null ? "–" : x.toFixed(2));
+    const pc = (x) => (x == null ? "–" : `${Math.round(x * 100)}%`);
+    const east = v.areas.find((a) => a.id === "east"), west = v.areas.find((a) => a.id === "west");
+    const words = (r) => (r == null ? "unknown" : r >= 0.7 ? "fairly close" : r >= 0.5 ? "moderate" : "weak");
+    box.replaceChildren(
+      el("p", {}, `How closely the tool's idea of a good or bad year matched what satellites saw (${v.method.years}): the match was ${words(east.all_crops.correlation)} in the east (correlation ${r2(east.all_crops.correlation)}, ${east.all_crops.years} years) and ${words(west.all_crops.correlation)} in the dry west (${r2(west.all_crops.correlation)}, ${west.all_crops.years} years). The quick tests found ${v.quick_tests.east_correlation} and ${v.quick_tests.west_correlation}.`),
+      el("p", {}, `Neighbouring fields differ more in one year (spread ${r2(east.all_crops.spread_between_neighbouring_pixels)}) than the whole area differs between years (${r2(east.all_crops.spread_of_area_average_between_years)}), so the tool describes the year, not one field's result.`),
+      el("p", {}, "\"Greenness\" is the highest satellite greenness (MODIS NDVI) in late April to late July, over pixels where one crop covers at least 75%. It is not yield."),
+      table(["Area", "Rain and snow a year", "Crop", "Correlation", "Better than the crop's average (leave one year out)", "Years", "Pixels a year"],
+        v.areas.flatMap((a) => Object.entries(a.crops).filter(([, c]) => c.years >= 6).map(([cid, c]) => [a.name, `${a.mean_crop_year_precip_in} in`, names[cid] || cid,
+          r2(c.correlation), pc(c.loo_reduction), c.years, c.pixels_median]))),
+      el("p", { class: "small" }, "Where it did not match: a negative figure means the index did worse than simply using the crop's own average. Lentils and peas did not fit in the east, as in the quick tests."),
+      el("h4", {}, "How strongly each crop swings with the year (winter wheat = 1)"),
+      table(["Crop", "Sensitivity", "Basis", "Years"], Object.entries(v.sensitivities).map(([cid, s]) => [names[cid] || cid, s.value, s.basis, s.n_years ?? "–"])),
+      el("p", { class: "small muted" }, `County yields: ${v.county_yields.available ? "used" : "not available (data/us/county_yields.csv not supplied), so greenness was used"}. Generated ${v.generated}.`));
+  }
+
+  async function renderEnso(box) {
+    if (!state.fieldId) { box.replaceChildren(el("p", { class: "muted" }, "Open a field to see what El Niño winters have meant there.")); return; }
+    try {
+      const e = await api(`/api/field/${state.fieldId}/enso`);
+      if (e.status !== "ok") throw new Error("unavailable");
+      box.replaceChildren(el("p", {}, `NOAA's index for ${e.season} ${e.year}: ${e.anomaly > 0 ? "+" : ""}${e.anomaly} (${e.state}). On your field, September–March rain and snow averaged ${e.el_nino_sep_mar_in} in in El Niño winters (${e.el_nino_years}) against ${e.other_sep_mar_in} in in the others (${e.other_years}).`),
+        el("p", {}, e.note));
+    } catch { box.replaceChildren(el("p", { class: "muted" }, "The El Niño index could not be read.")); }
+  }
+
+  // ---------- field layers on the map (addendum 2, B) ----------
+  const LAYERS = [
+    { id: "photo", label: "Satellite photo" },
+    { id: "crops", label: "Crop map" },
+    { id: "slope", label: "Slope" },
+  ];
+  const fmap = { map: null, outline: null, overlay: null, fieldId: null, layer: "photo", cache: {} };
+
+  function setupFieldMap() {
+    const box = $("#field-mapbox");
+    if (fmap.fieldId !== state.fieldId && fmap.map) {
+      if (fmap.overlay) { fmap.map.removeLayer(fmap.overlay); fmap.overlay = null; }
+      if (fmap.outline) fmap.map.removeLayer(fmap.outline);
+      fmap.outline = L.geoJSON(state.field.geometry, { style: { color: "#4cf", weight: 3, fill: false } }).addTo(fmap.map);
+      fmap.map.fitBounds(fmap.outline.getBounds(), { padding: [20, 20] });
+      fmap.fieldId = state.fieldId;
+      showLayer("photo");
+    }
+    box.open = window.matchMedia("(min-width: 1000px)").matches;
+    if (box.open) ensureFieldMap();
+  }
+
+  function ensureFieldMap() {
+    if (!state.field) return;
+    if (!fmap.map) {
+      fmap.map = L.map("field-map-main", { zoomControl: true, scrollWheelZoom: false, dragging: !L.Browser.mobile, tap: false });
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Esri World Imagery" }).addTo(fmap.map);
+      $("#layer-control").replaceChildren(...LAYERS.map((l) => el("label", { class: "radio" },
+        el("input", { type: "radio", name: "maplayer", value: l.id, checked: l.id === "photo" || null, onchange: () => showLayer(l.id) }), " ", l.label)));
+    }
+    setTimeout(() => {
+      fmap.map.invalidateSize();
+      if (fmap.fieldId !== state.fieldId) {
+        if (fmap.outline) fmap.map.removeLayer(fmap.outline);
+        fmap.outline = L.geoJSON(state.field.geometry, { style: { color: "#4cf", weight: 3, fill: false } }).addTo(fmap.map);
+        fmap.fieldId = state.fieldId;
+        showLayer(fmap.layer);
+      }
+      fmap.map.fitBounds(fmap.outline.getBounds(), { padding: [20, 20] });
+    }, 30);
+  }
+
+  async function showLayer(id) {
+    fmap.layer = id;
+    document.querySelectorAll("#layer-control input").forEach((i) => { i.checked = i.value === id; });
+    if (fmap.overlay) { fmap.map.removeLayer(fmap.overlay); fmap.overlay = null; }
+    const legend = $("#layer-legend");
+    const fid = state.fieldId;
+    if (id === "photo") { legend.textContent = "Satellite photo; your field is outlined in blue."; return; }
+    legend.textContent = "Loading…";
+    try {
+      if (id === "crops") {
+        const { years } = await api("/api/overlay/years");
+        const year = years[years.length - 1];
+        const meta = fmap.cache[`crops${year}`] || (fmap.cache[`crops${year}`] = await api(`/api/overlay/${year}.json`));
+        if (fid !== state.fieldId || fmap.layer !== id) return;
+        fmap.overlay = L.imageOverlay(`/api/overlay/${year}.png`, meta.bounds, { opacity: 0.7, interactive: false }).addTo(fmap.map);
+        legend.replaceChildren(`USDA crop map ${year} (it has errors): `, ...meta.legend.slice(0, 5).flatMap((l, i) => [i ? ", " : "",
+          el("span", { class: "sw", style: `background:${l.color}` }), ` ${l.name.toLowerCase()}`]), ".");
+      } else if (id === "slope") {
+        const meta = fmap.cache[`slope${fid}`] || (fmap.cache[`slope${fid}`] = await api(`/api/field/${fid}/slope_map.json`));
+        if (fid !== state.fieldId || fmap.layer !== id) return;
+        fmap.overlay = L.imageOverlay(`/api/field/${fid}/slope.png`, meta.bounds, { opacity: 0.85, interactive: false }).addTo(fmap.map);
+        const steep = meta.legend.find((g) => g.class === "high");
+        legend.replaceChildren(el("span", { class: "sw", style: `background:${steep ? steep.color : "#B2182B"}` }),
+          ` red stripes: steeper than 15% (${steep ? Math.round(steep.share * 100) : 0}% of the field), where winter cover matters most; orange 5–15%; pale under 5%.`);
+      }
+    } catch (err) {
+      legend.textContent = `This layer could not be shown (${err.message}).`;
+    }
+  }
+
   // ---------- evidence: rain and heat ----------------------------------------------------------------
   async function loadClimate() {
     const fid = state.fieldId;
@@ -1124,7 +1457,7 @@
       _label: "Rain and snow per crop year",
       type: "bar",
       data: { labels: y.map((r) => r.year), datasets: [{ label: "Total", data: y.map((r) => r.total_in),
-        backgroundColor: y.map((r) => (r.year === hy ? css("--series-hl") : css("--series-rain"))), borderRadius: 3, barPercentage: 0.8, categoryPercentage: 0.9 }] },
+        backgroundColor: y.map((r) => (r.year === hy ? css("--series-hl") : css("--series-rain"))), borderRadius: 4, barPercentage: 0.8, categoryPercentage: 0.9 }] },
       options: {
         scales: { y: { title: { display: true, text: "inches per crop year" }, beginAtZero: true }, x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } } },
         plugins: { tooltip: { callbacks: { title: (it) => `Crop year ${cropYear(y[it[0].dataIndex].year)}`, label: (it) => `${inch(it.raw)}${y[it.dataIndex].year === hy ? " (driest and hottest on record)" : ""}` } } },
@@ -1282,7 +1615,7 @@
       el("div", { class: "key" },
         el("span", {}, el("i", { class: "line", style: `background:${css("--series-ndvi")}` }), "Peak greenness"),
         el("span", {}, el("i", { class: "line", style: `background:${css("--series-hl")}` }), "May–June average"),
-        el("span", {}, "▲ along the bottom: drought year (extreme or exceptional drought over half the county)")));
+        el("span", {}, icon("triangle", "filled"), " along the bottom: drought year (extreme or exceptional drought over half the county)")));
     makeChart("modis", box, {
       _label: "Peak and late-spring greenness per year since 2000",
       type: "line",
@@ -1303,7 +1636,7 @@
     box.append(el("details", {}, el("summary", { class: "small" }, "Show the numbers"),
       table(["Year", "Crop (crop map)", "Peak", "May–June", "Drought"], ys.slice().reverse().map((y) => [
         y.year, crops[y.year] || "–", y.peak_ndvi.toFixed(2), y.window_mean_ndvi == null ? "–" : y.window_mean_ndvi.toFixed(2),
-        dry.has(y.year) ? "▲ yes" : ""]))),
+        dry.has(y.year) ? "yes" : ""]))),
       el("p", { class: "small muted" }, "The crop map starts in 2008, so earlier years have no crop label. MODIS composites cover 16 days each; a peak date is accurate to about a week."));
   }
 
@@ -1437,7 +1770,7 @@
           _label: "May to July topsoil moisture per year",
           type: "bar",
           data: { labels: ys.map((y) => (y.year === 2021 ? "2021 ▼" : String(y.year))), datasets: [{ data: ys.map((y) => +(y.mean * 100).toFixed(1)),
-            backgroundColor: ys.map((y) => (y.year === 2021 ? css("--series-hl") : css("--series-rain"))), borderRadius: 3 }] },
+            backgroundColor: ys.map((y) => (y.year === 2021 ? css("--series-hl") : css("--series-rain"))), borderRadius: 4 }] },
           options: { scales: { y: { beginAtZero: true, title: { display: true, text: "% water" } }, x: { grid: { display: false } } },
             plugins: { tooltip: { callbacks: { label: (it) => `${it.raw}% water by volume` } } } },
         }, "short");
@@ -1511,6 +1844,7 @@
           el("td", {}, p.key), el("td", {}, `${fmtVal(p.value)}${p.unit ? " " + p.unit : ""}`),
           el("td", {}, basisTag(p.basis), p.source ? ` ${p.source}` : "", p.basis === "assumed" ? el("div", {}, el("span", { class: "tag-prov" }, "provisional")) : null),
           el("td", {}, p.description || "")))))),
+      el("h3", {}, "Checked against what happened"), (() => { const b = el("div", {}, el("div", { class: "loading" }, "Loading…")); renderValidation(b); return b; })(),
       el("h3", {}, "What the model does not know"),
       el("ul", {}, (cfg.model_gaps || []).map((t) => el("li", {}, t))));
   }
@@ -1564,6 +1898,7 @@
     $("#tab-field").addEventListener("click", () => setTab("field"));
     $("#tab-about").addEventListener("click", () => setTab("about"));
     document.addEventListener("toggle", onSectionToggle, true);
+    $("#field-mapbox").addEventListener("toggle", (e) => { if (e.target.open) ensureFieldMap(); });
     window.addEventListener("hashchange", route);
     window.addEventListener("resize", () => { for (const ch of Object.values(state.charts)) ch.resize(); });
     route();

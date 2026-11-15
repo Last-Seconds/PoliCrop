@@ -1,4 +1,4 @@
-# Field Shift
+# Policrop
 
 Live demo (static prototype): https://last-seconds.github.io/potato-tomato/field-shift/
 
@@ -31,7 +31,13 @@ Checks against real data:
 
 ```bash
 .venv/bin/python tools/west_east_check.py      # the brief's west–east water check (section 12)
+.venv/bin/python tools/validate.py             # brief 3 part A: writes data/validation.json (reads MODIS; minutes)
+.venv/bin/python tools/demo_options.py         # options on each example field
+.venv/bin/python tools/screen_check.py --chrome PATH   # brief 3 part S screen targets (Playwright; app on :8777)
+.venv/bin/python tools/fields_check.py --chrome PATH   # brief 3 part F (save, reload, download, load, damaged file)
 ```
+
+Brief 3 results and open questions: `docs/BRIEF3_REPORT.md`.
 
 ## Layout
 
@@ -85,4 +91,10 @@ and an entry in `PROVIDER_SETS` (`app.py`).
 | GET | `/api/region/context` | county drought history |
 
 `inputs` is one JSON object, every key optional: `corrections`, `priorities`, `dry_mode`, `exclude`,
-`keep`, `plan_length`, `ph`, `tillage`, `yields`, `rain_pct`, `temp_f` (brief section 7).
+`keep`, `plan_length`, `ph`, `tillage`, `yields`, `rain_pct`, `temp_f` (brief 2 section 7), and from brief 3
+`kept`, `records`, `answers`, `fit`, `example_records`.
+
+Brief 3 adds: `GET /api/field/{id}/records_template.xlsx`, `POST /api/field/{id}/records/read` (raw file body,
+read and discarded), `POST /api/field/{id}/records/check`, `GET /api/field/{id}/example_records`,
+`GET /api/field/{id}/season` (`date=` replays a past date), `GET /api/field/{id}/season_replay`,
+`GET /api/field/{id}/enso`, `GET /api/validation`.

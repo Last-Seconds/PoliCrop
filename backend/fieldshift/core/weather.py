@@ -29,6 +29,7 @@ class DailySeries:
     absent: np.ndarray  # bool: not provided by design (calendar)
     calendar: str | None = None
     source: str | None = None
+    swe: np.ndarray | None = None  # snow water equivalent, kg/m² (modelled; Daymet), when the source gives it
 
     @property
     def last(self) -> dt.date:
@@ -68,7 +69,20 @@ class DailySeries:
 
     @staticmethod
     def from_raw(raw: dict) -> "DailySeries":
-        return DailySeries.from_days(validate_days(raw), (raw or {}).get("calendar"), (raw or {}).get("source"))
+        out = DailySeries.from_days(validate_days(raw), (raw or {}).get("calendar"), (raw or {}).get("source"))
+        days = (raw or {}).get("days") or []
+        if any(isinstance(d, dict) and d.get("swe") is not None for d in days[:400]):
+            sw = np.full(len(out.precip), np.nan)
+            for d in days:
+                try:
+                    i = out.idx(dt.date.fromisoformat(str(d["date"])))
+                    v = d.get("swe")
+                    if v is not None and 0 <= i < len(sw):
+                        sw[i] = float(v)
+                except (KeyError, TypeError, ValueError):
+                    continue
+            out.swe = sw
+        return out
 
     def adjusted(self, rain_factor: float = 1.0, rain_months: tuple[int, ...] = (), temp_delta_c: float = 0.0) -> "DailySeries":
         """A scenario copy: precipitation scaled in some months, temperatures shifted."""
@@ -77,7 +91,7 @@ class DailySeries:
             months = self.months()
             p[np.isin(months, rain_months)] *= rain_factor
         return DailySeries(self.first, p, self.tmax + temp_delta_c, self.tmin + temp_delta_c, self.absent,
-                           self.calendar, self.source)
+                           self.calendar, self.source, self.swe)
 
     def months(self) -> np.ndarray:
         if not hasattr(self, "_months"):

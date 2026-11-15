@@ -101,7 +101,7 @@ warnings:
       0 °F, the hardiness of 'Windham', the variety in the regional trials. Varieties
       range from −5 °F ('Lynx') to +10 °F (Austrian winter pea) [S27, Table 5-4]
       (addendum item 3; brief 2 used −6 °F from one trial [S4]).
-    params: {crop: winter_peas, limit_f: 0, months: [11, 12, 1, 2, 3]}
+    params: {crop: winter_peas, limit_f: 0, months: [11, 12, 1, 2, 3], snow_below_kg_m2: 10, snow_basis: assumed}
 
   - id: peas_poor_drainage                # W7
     code: W7

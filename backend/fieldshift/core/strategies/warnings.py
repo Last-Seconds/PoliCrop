@@ -194,11 +194,21 @@ def w6(crops: list[Crop], fm: FieldModel, p: dict, cfg: RuleConfig) -> list[Warn
         return []
     hit, of = f
     lim = _deg(p.get("limit_f", -6))
-    return [Warning(cfg.code, "W6", f"Winter-kill risk in {hit} of {of} years",
+    snow_known = any((fm.extremes.get("W6_snow_known") or {}).values())
+    anyf = fm.heat_frequency("W6_any")
+    if snow_known:  # addendum 2, A3
+        short = f"Cold enough to kill, with little snow, in {hit} of {of} winters"
+        how = (f"A night at or below {lim} came with little or no snow on the ground (under {p.get('snow_below_kg_m2', 10)} "
+               f"kg/m² of snow water, a modelled estimate from Daymet) between November and March in {hit} of the last "
+               f"{of} winters here" + (f"; a night that cold with any snow cover came in {anyf[0]}." if anyf else "."))
+    else:
+        short = f"Winter-kill risk in {hit} of {of} years"
+        how = (f"A night that cold came between November and March {_freq(hit, of)} here. Snow cover, which protects "
+               "the crop, is not known.")
+    return [Warning(cfg.code, "W6", short,
                     f"Winter hardiness depends on the variety: from −5 °F ('Lynx') to +10 °F (Austrian winter pea); "
-                    f"{lim} is the limit for 'Windham', the variety in the regional trials. A night that cold came "
-                    f"between November and March {_freq(hit, of)} here. Snow cover, which protects the crop, is not known.",
-                    PRIORITY["W6"] + (0 if hit else 30), cfg.basis, cfg.source)]
+                    f"{lim} is the limit for 'Windham', the variety in the regional trials. " + how,
+                    PRIORITY["W6"] + (0 if hit else 30), cfg.basis, cfg.source, serious=hit > 0)]
 
 
 @register("peas_poor_drainage")

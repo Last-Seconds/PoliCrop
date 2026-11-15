@@ -33,7 +33,7 @@ def parse_daymet_csv(text: str) -> dict:
         return next((i for i, c in enumerate(cols) if c.startswith(prefix)), None)
 
     i_year, i_yday = cols.index("year"), cols.index("yday")
-    i_p, i_tx, i_tn = col("prcp"), col("tmax"), col("tmin")
+    i_p, i_tx, i_tn, i_sw = col("prcp"), col("tmax"), col("tmin"), col("swe")
     if i_p is None:
         raise ValueError("Daymet response has no precipitation column")
     days = []
@@ -56,7 +56,8 @@ def parse_daymet_csv(text: str) -> dict:
                 return None
             return None if math.isnan(v) or v <= -9999 else v
 
-        days.append({"date": date.isoformat(), "precip_mm": num(i_p), "tmax_c": num(i_tx), "tmin_c": num(i_tn)})
+        days.append({"date": date.isoformat(), "precip_mm": num(i_p), "tmax_c": num(i_tx), "tmin_c": num(i_tn),
+                     "swe": num(i_sw)})
     if not days:
         raise ValueError("Daymet response contained no days")
     elevation = None
@@ -78,7 +79,7 @@ class DaymetWeather:
         today = self._today or dt.date.today()
         end = dt.date(today.year - 1, 12, 31)  # complete years only; Daymet truncates to its release
         text = get_text(DAYMET_URL, params={
-            "lat": round(lat, 5), "lon": round(lon, 5), "vars": "prcp,tmax,tmin",
+            "lat": round(lat, 5), "lon": round(lon, 5), "vars": "prcp,tmax,tmin,swe",
             "start": FIRST_DATE.isoformat(), "end": end.isoformat(),
         }, timeout=180)
         parsed = parse_daymet_csv(text)
